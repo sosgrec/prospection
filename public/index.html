@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Prospection" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="icons/icon-192.png" />
+    <title>Prospection</title>
+    <link rel="stylesheet" href="app.css?v=__VERSION__" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="banner" hidden></div>
+      <main id="tabs">
+        <section id="tab-carte" class="tab tab-map active" data-tab="carte"></section>
+        <section id="tab-contacts" class="tab" data-tab="contacts"></section>
+        <section id="tab-relances" class="tab" data-tab="relances"></section>
+        <section id="tab-scenarios" class="tab" data-tab="scenarios"></section>
+        <section id="tab-bord" class="tab" data-tab="bord"></section>
+      </main>
+      <nav id="tabbar" aria-label="Onglets"></nav>
+    </div>
+    <div id="pages"></div>
+    <div id="sheet-root"></div>
+    <div id="dialog-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+    <div id="boot">
+      <div class="boot-logo"></div>
+      <p id="boot-msg">Chargement…</p>
+    </div>
+    <script type="module" src="app.js?v=__VERSION__"></script>
+  </body>
+</html>
