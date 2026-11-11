@@ -150,7 +150,7 @@ function settingsHTML(storage) {
     </div>
     <div class="card">
       <h3>${icon('euro', 18)} Ventes DVF</h3>
-      <p class="small muted" style="margin:0 0 10px">${dvf ? `${plural(dvf.ventes.length, 'vente', 'ventes')} dans et autour de tes îlots. Données du ${fmtDate(dvf.maj)} (${esc(dvf.source)}).` : 'Aucune donnée.'}</p>
+      <p class="small muted" style="margin:0 0 10px">${dvf ? `${plural(dvf.ventes.length, 'vente', 'ventes')} dans et autour de tes îlots${dvf.annees?.length ? `, de ${dvf.annees[0]} à ${dvf.annees[dvf.annees.length - 1]}` : ''}. Données préparées le ${fmtDate(dvf.maj)}. Source : DVF, data.gouv.fr.` : 'Aucune donnée.'}</p>
       <button type="button" class="btn btn-light btn-block btn-small" data-dvf>${icon('refresh', 18)} Mise à jour DVF</button>
     </div>
     <div class="card">
@@ -236,7 +236,7 @@ export function initDashboard(root) {
         const r = await updateDvf((msg) => (btn.textContent = msg));
         resetDvfHints();
         reloadDvf();
-        toast(r.direct ? `Ventes mises à jour (${r.annees.join(', ')})` : 'Site DVF injoignable depuis l’appli : copie de l’appli rechargée');
+        toast(r.direct ? `Ventes mises à jour (${r.annees.join(', ')})` : `Ventes rechargées : données préparées le ${fmtDate(r.data.maj)}`);
       } catch (err) {
         toast(err.message || 'Mise à jour impossible');
       }

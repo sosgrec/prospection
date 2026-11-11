@@ -77,7 +77,6 @@ export async function updateDvf(onProgress = () => {}) {
     if (!r.ok) throw new Error('Pas de connexion : réessaie quand tu auras du réseau.');
     data = await r.json();
     source = 'copie de l’appli';
-    data.source = `${data.source} (copie de l’appli)`;
   }
   await setSetting('dvf', data);
   S.dvf = data;
