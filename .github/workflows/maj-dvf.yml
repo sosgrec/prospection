@@ -1,0 +1,58 @@
+# Chaque mois, récupère les dernières ventes DVF de Champigny sur data.gouv.fr.
+# Si de nouvelles ventes apparaissent, l'appli est reconstruite et republiée (docs/),
+# et l'iPhone propose « Nouvelle version disponible ».
+name: Mise à jour des ventes DVF
+
+on:
+  schedule:
+    - cron: '23 4 3 * *' # le 3 de chaque mois vers 5 h 23 (heure de Paris en hiver)
+  workflow_dispatch: # lancement manuel depuis l'onglet Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: maj-dvf
+  cancel-in-progress: false
+
+jobs:
+  dvf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci --no-audit --no-fund
+
+      - name: Télécharger et découper les ventes
+        run: node scripts/update-dvf.mjs
+
+      - name: Reconstruire l'appli si les ventes ont changé
+        run: |
+          if git diff --quiet -- public/data/dvf.json; then
+            echo "Aucune nouvelle vente : appli inchangée."
+          else
+            npm run build
+          fi
+
+      - name: Enregistrer dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/dvf.json docs data-src/dvf-derniere-verification.txt
+          if git diff --cached --quiet; then
+            echo "Rien à enregistrer."
+            exit 0
+          fi
+          if git diff --cached --quiet -- public/data/dvf.json; then
+            git commit -m "Vérification mensuelle des ventes DVF (aucun changement)"
+          else
+            git commit -m "Mise à jour automatique des ventes DVF"
+          fi
+          git push

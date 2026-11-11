@@ -33,6 +33,10 @@ L'appli fonctionne ensuite sans connexion. Toutes les données saisies (contacts
 - `data-src/ilots.kml` : contours des îlots exportés de Google My Maps (zones rouges).
 - `tests/` : tests automatisés dans Chrome au format iPhone.
 
+## Mise à jour automatique des ventes DVF
+
+Une tâche GitHub Actions (« Mise à jour des ventes DVF », fichier `.github/workflows/maj-dvf.yml`) tourne le 3 de chaque mois. Elle télécharge les ventes de Champigny sur data.gouv.fr, les découpe selon les îlots et, si de nouvelles ventes apparaissent, reconstruit l'appli. L'iPhone propose alors « Nouvelle version disponible ». On peut aussi la lancer à la main : onglet **Actions**, puis **Run workflow**.
+
 ## Mettre à jour les données publiques
 
 ```bash
