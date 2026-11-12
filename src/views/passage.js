@@ -1,7 +1,7 @@
 // Saisie rapide d'un passage : Absent, Contact ou Refus.
 import { dialog, toast, $ } from '../ui.js';
 import { icon, starIcon } from '../icons.js';
-import { esc, fmtDate, todayStr } from '../util.js';
+import { esc, fmtDate, fmtDateTime, todayStr, dayStr, parseLocalDateTime } from '../util.js';
 import {
   S,
   addPassage,
@@ -49,8 +49,16 @@ export function blockedHTML(b) {
   return `<div class="blocked">${icon('alert', 18)} Ne plus solliciter<div class="muted small">${who}${b.date ? ` (le ${fmtDate(b.date)})` : ''}.</div></div>`;
 }
 
+// Valeur d'un champ date-heure (heure locale) : AAAA-MM-JJTHH:MM
+const pad = (n) => String(n).padStart(2, '0');
+export const toInputDateTime = (ms) => {
+  const d = new Date(ms);
+  return `${dayStr(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const isPast = (t) => t < Date.now() - 2 * 60000;
+
 // Boîte de dialogue « Contact » ou « Refus ». Renvoie les choix, ou null si annulé.
-async function askDetails({ addressId, logementId, result, candidates, allowNew }) {
+async function askDetails({ addressId, logementId, result, candidates, allowNew, when = null }) {
   const isContact = result === 'contact';
   const scen = activeScenarios();
   let choice = candidates.length === 1 ? { contactId: candidates[0].id } : candidates.length ? null : allowNew && isContact ? { nouveau: true } : { none: true };
@@ -86,6 +94,8 @@ async function askDetails({ addressId, logementId, result, candidates, allowNew 
         : ''
     }
     <label class="field" style="margin-top:${isContact ? 0 : 14}px"><span>Note (facultatif)</span><textarea data-note rows="2" placeholder="${isContact ? 'Ce que tu as appris' : 'Raison du refus'}"></textarea></label>
+    <label class="field"><span>Date du passage</span><input type="datetime-local" data-when value="${toInputDateTime(when || Date.now())}" max="${toInputDateTime(Date.now())}" /></label>
+    <p class="small muted" style="margin:-8px 0 10px">À changer seulement pour une ancienne visite : elle ne comptera pas dans les portes de la semaine.</p>
     ${
       !isContact
         ? `<label class="check"><input type="checkbox" data-neplus /> <span>La personne demande à ne plus être sollicitée</span></label>`
@@ -103,6 +113,15 @@ async function askDetails({ addressId, logementId, result, candidates, allowNew 
         validate: async (b) => {
           if (!choice) {
             toast('Choisis la personne, ou « Sans fiche »');
+            return false;
+          }
+          const t = parseLocalDateTime($('[data-when]', b).value);
+          if (!Number.isFinite(t)) {
+            toast('Date du passage invalide');
+            return false;
+          }
+          if (t > Date.now() + 5 * 60000) {
+            toast('La date du passage ne peut pas être dans le futur');
             return false;
           }
           if (isContact && choice.contactId) {
@@ -128,6 +147,7 @@ async function askDetails({ addressId, logementId, result, candidates, allowNew 
           scenarioId: isContact ? $('[data-scen]', b).value || null : null,
           note: $('[data-note]', b).value.trim(),
           nePlus: !isContact && $('[data-neplus]', b).checked,
+          t: Math.min(parseLocalDateTime($('[data-when]', b).value), Date.now()),
         }),
       },
     ],
@@ -177,7 +197,7 @@ async function askDetails({ addressId, logementId, result, candidates, allowNew 
 }
 
 // Enregistre un passage. `handlers` permet à la vue immeuble de garder liens et couleurs dans son brouillon.
-export async function recordPassage({ addressId, logementId = null, result, handlers = {}, candidates: cands = null, blocked: blk }) {
+export async function recordPassage({ addressId, logementId = null, result, handlers = {}, candidates: cands = null, blocked: blk, when = null }) {
   const blocked = blk !== undefined ? blk : blockedInfo(addressId, logementId);
   if (blocked) {
     await dialog({ title: 'Ne plus solliciter', body: blockedHTML(blocked), buttons: [{ label: 'Compris', value: true, kind: 'primary' }] });
@@ -190,7 +210,7 @@ export async function recordPassage({ addressId, logementId = null, result, hand
     return p;
   }
   const candidates = cands || candidatesFor(addressId, logementId);
-  const d = await askDetails({ addressId, logementId, result, candidates, allowNew: true });
+  const d = await askDetails({ addressId, logementId, result, candidates, allowNew: true, when });
   if (!d) return null;
   let contact = null;
   let isNew = false;
@@ -205,7 +225,7 @@ export async function recordPassage({ addressId, logementId = null, result, hand
   }
   if (result === 'refus') {
     if (contact) {
-      const stamp = `${fmtDate(todayStr())} : refus${d.note ? ' (' + d.note + ')' : ''}`;
+      const stamp = `${fmtDate(d.t)} : refus${d.note ? ' (' + d.note + ')' : ''}`;
       contact.refusNote = [contact.refusNote, stamp].filter(Boolean).join('\n');
       if (d.nePlus) {
         contact.nePlusSolliciter = true;
@@ -223,13 +243,49 @@ export async function recordPassage({ addressId, logementId = null, result, hand
       }
     }
   }
-  const p = await addPassage({ addressId, logementId, contactId: contact?.id || null, result, scenarioId: d.scenarioId, note: d.note });
+  const p = await addPassage({ addressId, logementId, contactId: contact?.id || null, result, scenarioId: d.scenarioId, note: d.note, t: d.t });
   nav.refreshCounter();
+  const quand = isPast(p.t) ? ` (passage du ${fmtDateTime(p.t)})` : '';
   if (isNew) {
-    toast('Fiche créée : complète-la maintenant');
+    toast(`Fiche créée${quand} : complète-la maintenant`);
     nav.openContact(contact.id, { isNew: true });
-  } else toast(result === 'contact' ? 'Contact enregistré' : 'Refus enregistré', { action: 'Annuler', onAction: () => deletePassage(p.id) });
+  } else toast(`${result === 'contact' ? 'Contact enregistré' : 'Refus enregistré'}${quand}`, { action: 'Annuler', onAction: () => deletePassage(p.id) });
   return p;
+}
+
+// Ancienne visite : choix du résultat et de la date, sans compter dans les portes de la semaine.
+export async function recordOldPassage({ addressId, logementId = null, handlers = {}, candidates = null }) {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(18, 0, 0, 0);
+  const r = await dialog({
+    title: 'Ancien passage',
+    body: `<p class="muted small" style="margin-top:-4px">${esc(addrLabel(addressId))}</p>
+      <label class="field"><span>Date et heure de la visite</span><input type="datetime-local" data-when value="${toInputDateTime(yesterday.getTime())}" max="${toInputDateTime(Date.now())}" /></label>
+      <div class="field-label">Résultat</div>
+      <div class="quick">
+        <button type="button" class="q-absent" data-r="absent">${icon('door', 20)}Absent</button>
+        <button type="button" class="q-contact" data-r="contact">${icon('user', 20)}Contact</button>
+        <button type="button" class="q-refus" data-r="refus">${icon('close', 20)}Refus</button>
+      </div>`,
+    buttons: [{ label: 'Annuler', value: null, kind: 'light' }],
+    onOpen(b, finish) {
+      b.addEventListener('click', (e) => {
+        const x = e.target.closest('[data-r]');
+        if (!x) return;
+        const t = parseLocalDateTime($('[data-when]', b).value);
+        if (!Number.isFinite(t) || t > Date.now() + 5 * 60000) return toast('Choisis une date passée');
+        finish({ result: x.dataset.r, t: Math.min(t, Date.now()) });
+      });
+    },
+  });
+  if (!r) return null;
+  if (r.result === 'absent') {
+    const p = await addPassage({ addressId, logementId, result: 'absent', t: r.t });
+    toast(`Absent du ${fmtDateTime(r.t)} enregistré`, { action: 'Annuler', onAction: () => deletePassage(p.id) });
+    return p;
+  }
+  return recordPassage({ addressId, logementId, result: r.result, handlers, candidates, blocked: null, when: r.t });
 }
 
 export function quickButtonsHTML(addressId, logementId = null) {

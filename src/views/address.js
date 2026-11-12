@@ -38,9 +38,10 @@ import {
   activeScenarios,
   deleteCustomAddress,
   probableImmeuble,
+  deletePassage,
 } from '../state.js';
 import { nav, register } from '../nav.js';
-import { recordPassage, quickButtonsHTML } from './passage.js';
+import { recordPassage, recordOldPassage, quickButtonsHTML } from './passage.js';
 import { pickContact, pickFromList } from './pickers.js';
 import { selectAddress, ensureVisible, venteHTML } from './map.js';
 import { choosePhoto, addPhoto, renderPhotoGrid, viewPhoto } from '../photos.js';
@@ -137,7 +138,8 @@ export function openAddressSheet(id) {
       <div class="btn-row" style="margin-top:8px">
         <button type="button" class="btn btn-light btn-small" data-act="newcontact">${icon('userPlus', 18)} Nouveau contact</button>
         <button type="button" class="btn btn-light btn-small" data-act="expand">${icon('expand', 18)} Agrandir</button>
-      </div>`;
+      </div>
+      <button type="button" class="link-btn small" data-act="oldpassage" style="margin-top:4px;font-size:14px">${icon('clock', 16)} Ajouter un ancien passage</button>`;
   };
   render();
   content.addEventListener('click', async (e) => {
@@ -147,6 +149,7 @@ export function openAddressSheet(id) {
     if (c) return nav.openContact(c.dataset.contact);
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (act === 'building') nav.openBuilding(id);
+    else if (act === 'oldpassage') recordOldPassage({ addressId: id });
     else if (act === 'setimm') {
       await saveAddrUser({ ...addrUser(id), id, type: 'immeuble' });
       nav.openBuilding(id);
@@ -293,7 +296,8 @@ export function openAddressPage(id) {
     },
     history: () => {
       const ps = passagesOfAddress(id);
-      if (!ps.length) return '<p class="muted small" style="margin:0">Aucun passage pour le moment.</p>';
+      const add = `<button type="button" class="btn btn-light btn-small btn-block" data-act="oldpassage" style="margin-top:10px">${icon('clock', 18)} Ajouter un ancien passage</button>`;
+      if (!ps.length) return `<p class="muted small" style="margin:0">Aucun passage pour le moment.</p>${add}`;
       const scen = new Map(activeScenarios().map((s) => [s.id, s]));
       return `<ul class="timeline">${ps
         .slice(0, 60)
@@ -303,9 +307,9 @@ export function openAddressPage(id) {
           const extra = [lg ? lg.loc || 'appartement' : p.logementId ? 'appartement supprimé' : '', c ? contactName(c) : '', p.scenarioId ? `scénario « ${scen.get(p.scenarioId)?.titre || 'supprimé'} »` : '', p.note]
             .filter(Boolean)
             .join(' · ');
-          return `<li><span class="t-date">${fmtDate(p.t)}<br>${new Date(p.t).toTimeString().slice(0, 5).replace(':', 'h')}</span><span><span class="res-${p.result}">${RESULTS[p.result]}</span>${extra ? ` <span class="muted">${esc(extra)}</span>` : ''}</span></li>`;
+          return `<li><span class="t-date">${fmtDate(p.t)}<br>${new Date(p.t).toTimeString().slice(0, 5).replace(':', 'h')}</span><span style="flex:1"><span class="res-${p.result}">${RESULTS[p.result]}</span>${extra ? ` <span class="muted">${esc(extra)}</span>` : ''}</span><button type="button" class="icon-btn plain" data-delpass="${p.id}" aria-label="Supprimer ce passage" style="width:34px;height:34px">${icon('trash', 17)}</button></li>`;
         })
-        .join('')}</ul>`;
+        .join('')}</ul>${add}`;
     },
     dvf: () => {
       if (!S.dvf) return '';
@@ -350,7 +354,17 @@ export function openAddressPage(id) {
       }
       return;
     }
+    const dp = e.target.closest('[data-delpass]');
+    if (dp) {
+      const p = S.passages.get(dp.dataset.delpass);
+      if (p && (await confirmDialog(`Supprimer le passage « ${RESULTS[p.result].toLowerCase()} » du ${fmtDateTime(p.t)} ?`, { ok: 'Supprimer', danger: true }))) {
+        await deletePassage(p.id);
+        toast('Passage supprimé');
+      }
+      return;
+    }
     const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'oldpassage') return recordOldPassage({ addressId: id });
     if (act === 'building') {
       if (page.dirty) {
         const ok = await page.save();

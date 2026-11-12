@@ -20,7 +20,7 @@ import {
   contactName,
 } from '../state.js';
 import { nav, register } from '../nav.js';
-import { recordPassage, blockedHTML } from './passage.js';
+import { recordPassage, recordOldPassage, blockedHTML } from './passage.js';
 import { pickContact } from './pickers.js';
 
 const autoLabel = (i) => (i === 0 ? 'RDC' : i === 1 ? '1er' : `${i}e`);
@@ -170,7 +170,7 @@ export function openBuilding(addressId) {
               ? blockedHTML(b.contact ? b : { by: 'logement' })
               : `<div class="quick"><button type="button" class="q-absent" data-p="absent">${icon('door', 20)}Absent</button><button type="button" class="q-contact" data-p="contact">${icon('user', 20)}Contact</button><button type="button" class="q-refus" data-p="refus">${icon('close', 20)}Refus</button></div>`
           }
-          <p class="small muted" style="margin:6px 0 12px">${last ? `Dernier passage : ${RESULTS[last.result].toLowerCase()} le ${fmtDayShort(last.t)}` : 'Jamais visité'}</p>
+          <p class="small muted" style="margin:6px 0 12px">${last ? `Dernier passage : ${RESULTS[last.result].toLowerCase()} le ${fmtDayShort(last.t)}` : 'Jamais visité'} · <button type="button" class="link-btn small" data-a="old" style="min-height:0;font-size:13px">Ancien passage</button></p>
           <label class="field" style="margin:0"><span>Couleur</span>${segHTML(
             'col',
             [
@@ -220,6 +220,20 @@ export function openBuilding(addressId) {
         if (r?.contactId) setLink(lg.id, r.contactId);
       } else if (res.a === 'new') {
         nav.newContact({ link: null, onSaved: (nc) => setLink(lg.id, nc.id), title: 'Nouvel occupant' });
+        finished = true;
+      } else if (res.a === 'old') {
+        await recordOldPassage({
+          addressId,
+          logementId: lg.id,
+          candidates: c ? [c] : [],
+          handlers: {
+            link: async (link, contact) => setLink(lg.id, contact.id),
+            setRouge: async () => {
+              lg.color = 'rouge';
+              page.setDirty(true);
+            },
+          },
+        });
         finished = true;
       } else if (res.p) {
         await recordPassage({

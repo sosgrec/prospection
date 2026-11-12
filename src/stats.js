@@ -223,7 +223,13 @@ export function monthReport(monthStart) {
   const opens = ps.filter(isOpen).length;
   const met = new Set(ps.filter((p) => p.result === 'contact' && p.contactId).map((p) => p.contactId));
   const metContacts = [...met].map((id) => S.contacts.get(id)).filter(Boolean);
-  const newContacts = activeContacts().filter((c) => c.createdAt >= t0 && c.createdAt < t1).length;
+  // Nouvelle personne = premier passage avec elle dans le mois (ou fiche créée dans le mois sans passage).
+  const firstSeen = new Map();
+  for (const p of S.passages.values()) if (p.contactId && (!firstSeen.has(p.contactId) || p.t < firstSeen.get(p.contactId))) firstSeen.set(p.contactId, p.t);
+  const newContacts = activeContacts().filter((c) => {
+    const t = firstSeen.get(c.id) ?? c.createdAt;
+    return t >= t0 && t < t1;
+  }).length;
   const relDone = [...S.relances.values()].filter((r) => r.done && r.doneAt >= t0 && r.doneAt < t1).length;
   const weeks = [];
   for (let w = startOfWeek(t0); w < t1; w = addDays(w, 7)) weeks.push({ start: w, count: ps.filter((p) => p.t >= w && p.t < addDays(w, 7)).length });
