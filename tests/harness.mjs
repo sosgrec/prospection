@@ -27,6 +27,9 @@ export async function start({ dir = 'dist' } = {}) {
     if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`);
   });
   page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
+  page.on('response', (r) => {
+    if (r.status() === 404) logs.push(`[404] ${r.url()}`);
+  });
   page.on('dialog', async (d) => {
     logs.push(`[dialog natif !] ${d.message()}`);
     await d.dismiss();
@@ -40,10 +43,44 @@ export async function start({ dir = 'dist' } = {}) {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function boot(page) {
-  await page.goto(URL0, { waitUntil: 'networkidle0' });
-  await page.waitForFunction(() => !document.getElementById('boot'), { timeout: 15000 });
+// Code d'accès utilisé par les tests.
+export const PIN = '258014';
+
+async function waitLockTitle(page, re, timeout = 20000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    // La page peut être en train de se recharger : on réessaie.
+    const t = await page.evaluate(() => (document.querySelector('#lock:not([hidden]) .lock-title') || {}).textContent || '').catch(() => '');
+    if (re.test(t)) return t;
+    await sleep(100);
+  }
+  throw new Error(`Écran du code attendu : ${re}`);
+}
+
+// Écran du code au démarrage : création (2 saisies + « J’ai compris ») ou simple déverrouillage.
+export async function unlock(page, pin = PIN) {
+  const t = await waitLockTitle(page, /Crée ton code|Entre ton code/);
+  if (/Crée/.test(t)) {
+    await page.keyboard.type(pin);
+    await waitLockTitle(page, /Confirme/);
+    await page.keyboard.type(pin);
+    await waitLockTitle(page, /Retiens/);
+    await tapText(page, '#lock .lock-buttons button', 'J’ai compris');
+  } else {
+    await page.keyboard.type(pin);
+  }
+  await page.waitForFunction(() => !document.getElementById('boot'), { timeout: 30000 });
   await sleep(300);
+}
+
+export async function boot(page, pin = PIN) {
+  await page.goto(URL0, { waitUntil: 'networkidle0' });
+  await unlock(page, pin);
+}
+
+export async function reload(page, waitUntil = 'networkidle0') {
+  await page.reload({ waitUntil });
+  await unlock(page);
 }
 
 export async function shot(page, name) {

@@ -2,7 +2,7 @@
 import { icon, starIcon } from '../icons.js';
 import { esc, formatPhone, fmtAgo } from '../util.js';
 import { $, emptyState } from '../ui.js';
-import { S, onChange, searchContacts, contactDisplay, contactColor, contactMainAddress, addrLabel, vendeurPotentiel, passagesOfContact, OCCUPATIONS } from '../state.js';
+import { S, onChange, searchContacts, contactDisplay, contactColor, contactMainAddress, addrLabel, vendeurPotentiel, passagesOfContact, OCCUPATIONS, accordManquant, contactsSansAccord } from '../state.js';
 import { nav } from '../nav.js';
 
 const FILTERS = [
@@ -13,6 +13,7 @@ const FILTERS = [
   ['proprietaires', 'Propriétaires'],
   ['locataires', 'Locataires'],
   ['vendeurs', 'Installés 7 à 10 ans'],
+  ['accord', 'Accord manquant'],
   ['neplus', 'Ne plus solliciter'],
 ];
 let q = '';
@@ -35,6 +36,8 @@ function pass(c) {
       return vendeurPotentiel(c);
     case 'neplus':
       return c.nePlusSolliciter;
+    case 'accord':
+      return accordManquant(c);
     default:
       return true;
   }
@@ -49,12 +52,27 @@ export function initContacts(root) {
   root.innerHTML = `
     <div class="tab-head"><h1>Contacts</h1><button type="button" class="head-btn" data-new>${icon('plus', 18)} Nouveau</button></div>
     <div class="searchbar">${icon('search', 20)}<input type="search" placeholder="Nom, téléphone ou adresse" data-q /></div>
+    <div data-rgpd></div>
     <div class="chips" data-filters>${FILTERS.map(([k, l]) => `<button type="button" class="chip ${k === filter ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>
     <div class="pad" style="display:flex;justify-content:space-between;align-items:center;margin:-2px 0 6px"><span class="small muted" data-count></span>
       <button type="button" class="link-btn small" data-sort style="min-height:32px;font-size:14px"></button></div>
     <div data-list></div>`;
   const list = $('[data-list]', root);
+  const setFilter = (k) => {
+    filter = k;
+    for (const x of root.querySelectorAll('[data-filters] [data-f]')) x.classList.toggle('on', x.dataset.f === k);
+    root.querySelector(`[data-filters] [data-f="${k}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  };
+  root.addEventListener('contacts:filtre', (e) => {
+    setFilter(e.detail);
+    render();
+  });
   const render = () => {
+    const sans = contactsSansAccord().length;
+    $('[data-rgpd]', root).innerHTML =
+      sans && filter !== 'accord'
+        ? `<button type="button" class="rgpd-notice" data-f="accord">${icon('alert', 18)}<span>${sans === 1 ? '1 contact a' : `${sans} contacts ont`} des coordonnées sans accord noté</span><span class="link">Voir</span></button>`
+        : '';
     let res = searchContacts(q).filter(pass);
     if (sort === 'az') res.sort((a, b) => contactDisplay(a).localeCompare(contactDisplay(b), 'fr'));
     else res.sort((a, b) => lastActivity(b) - lastActivity(a));
@@ -69,7 +87,11 @@ export function initContacts(root) {
       .map((c) => {
         const a = contactMainAddress(c);
         const sub = [a ? addrLabel(a) : '', formatPhone(c.tel)].filter(Boolean).join(' · ') || (c.occupation ? OCCUPATIONS[c.occupation] : 'Fiche à compléter');
-        const badges = [c.mandatSigne ? '<span class="pill vert" style="font-size:11px;padding:1px 7px">Mandat</span>' : '', vendeurPotentiel(c) ? '<span class="pill" style="font-size:11px;padding:1px 7px;background:#efe7fd;color:#5b21b6">7-10 ans</span>' : ''].join('');
+        const badges = [
+          c.mandatSigne ? '<span class="pill vert" style="font-size:11px;padding:1px 7px">Mandat</span>' : '',
+          vendeurPotentiel(c) ? '<span class="pill" style="font-size:11px;padding:1px 7px;background:#efe7fd;color:#5b21b6">7-10 ans</span>' : '',
+          accordManquant(c) ? '<span class="pill warn" style="font-size:11px;padding:1px 7px">Sans accord</span>' : '',
+        ].join('');
         return `<button type="button" class="li" data-id="${c.id}">
           <span class="dot ${contactColor(c)}"></span>
           <span class="li-main"><span class="li-title">${esc(contactDisplay(c))} ${c.interet ? starIcon(c.interet === 2, 15) : ''} ${badges}</span><span class="li-sub">${esc(sub)}</span></span>
@@ -88,8 +110,7 @@ export function initContacts(root) {
     if (e.target.closest('[data-new]')) return nav.newContact({});
     const f = e.target.closest('[data-f]');
     if (f) {
-      filter = f.dataset.f;
-      for (const x of root.querySelectorAll('[data-f]')) x.classList.toggle('on', x === f);
+      setFilter(f.dataset.f);
       return render();
     }
     if (e.target.closest('[data-sort]')) {

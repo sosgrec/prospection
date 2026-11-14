@@ -49,7 +49,7 @@ function sheetXML(rows, widths) {
 }
 
 // sheets : [{ name, rows: [[...], ...], widths?: [...] }]
-export function writeXlsx(sheets) {
+export function writeXlsx(sheets, { level = 6 } = {}) {
   const files = {};
   const n = sheets.length;
   files['[Content_Types].xml'] = strToU8(
@@ -96,7 +96,7 @@ export function writeXlsx(sheets) {
   sheets.forEach((s, i) => {
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXML(s.rows, s.widths));
   });
-  return zipSync(files, { level: 6 });
+  return zipSync(files, { level });
 }
 
 // ---------- Lecture ----------

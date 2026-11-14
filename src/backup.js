@@ -1,7 +1,7 @@
 // Sauvegarde et restauration au format Excel (.xlsx), lisible dans Excel, Numbers ou Google Sheets.
 import * as db from './db.js';
 import { writeXlsx, readXlsx } from './xlsx.js';
-import { S, setSetting, getSetting, addrLabel, contactMainAddress, activeContacts } from './state.js';
+import { S, setSetting, getSetting, addrLabel, contactMainAddress } from './state.js';
 import { allPhotoRecords } from './photos.js';
 import { dayStr, localDateTime, parseLocalDateTime, shareOrDownload, fmtDate, esc, plural } from './util.js';
 import { dialog, toast, confirmDialog } from './ui.js';
@@ -9,6 +9,12 @@ import { dialog, toast, confirmDialog } from './ui.js';
 export const FORMAT = 'prospection-sauvegarde';
 export const FORMAT_VERSION = 1;
 const CHUNK = 30000;
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const MIN_PWD = 10;
+// Réglages jamais copiés dans le fichier : propres à ce téléphone ou inutiles.
+const LOCAL_SETTINGS = ['dvf', 'mapView', 'backupPwd'];
+// Fichier Excel protégé par mot de passe (conteneur chiffré d'Office)
+const isProtected = (b) => b.length > 8 && b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0;
 
 // ---------- Conversions ----------
 const ouiNon = (b) => (b ? 'oui' : 'non');
@@ -67,12 +73,21 @@ const parseOcc = (v) => {
   return null;
 };
 
+const ACCORD_TXT = { oral: 'à l’oral', ecrit: 'par écrit', message: 'par SMS ou email' };
+const parseAccordMode = (v) => {
+  const x = str(v).toLowerCase();
+  if (!x) return null;
+  if (x.includes('oral')) return 'oral';
+  if (x.includes('crit')) return 'ecrit';
+  return 'message';
+};
+
 // ---------- Tables : colonne → lecture / écriture ----------
 // Chaque colonne : [entête, (objet) => valeur exportée, (objet, valeur) => import]
 const TABLES = {
   contacts: {
     sheet: 'Contacts',
-    widths: [12, 16, 18, 16, 26, 14, 10, 14, 10, 8, 14, 9, 40, 9, 12, 40, 30, 11, 12, 20, 40, 17, 17, 17],
+    widths: [12, 16, 18, 16, 26, 14, 10, 14, 10, 8, 14, 9, 40, 9, 12, 40, 30, 11, 12, 20, 40, 17, 17, 17, 12, 12, 16],
     cols: [
       ['id', (c) => c.id, (o, v) => (o.id = str(v))],
       ['prenom', (c) => c.prenom, (o, v) => (o.prenom = str(v))],
@@ -98,6 +113,9 @@ const TABLES = {
       ['cree_le', (c) => ts(c.createdAt), (o, v) => (o.createdAt = parseTs(v) || Date.now())],
       ['modifie_le', (c) => ts(c.updatedAt), (o, v) => (o.updatedAt = parseTs(v))],
       ['corbeille_le', (c) => ts(c.deletedAt), (o, v) => (o.deletedAt = parseTs(v))],
+      ['accord_rgpd', (c) => ouiNon(c.accord), (o, v) => (o.accord = isOui(v))],
+      ['accord_le', (c) => c.accordDate, (o, v) => (o.accordDate = parseDayStr(v))],
+      ['accord_mode', (c) => ACCORD_TXT[c.accordMode] || '', (o, v) => (o.accordMode = parseAccordMode(v))],
     ],
   },
   links: {
@@ -204,17 +222,16 @@ function tableRows(key, items) {
   return [t.cols.map((c) => c[0]), ...items.map((it) => t.cols.map((c) => c[1](it) ?? ''))];
 }
 
-async function blobToBase64(blob) {
-  const buf = new Uint8Array(await blob.arrayBuffer());
+function bytesToBase64(buf) {
   let bin = '';
   for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
   return btoa(bin);
 }
-function base64ToBlob(b64, type = 'image/jpeg') {
+function base64ToBytes(b64) {
   const bin = atob(b64);
   const u8 = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-  return new Blob([u8], { type });
+  return u8;
 }
 
 export async function buildBackup() {
@@ -222,13 +239,13 @@ export async function buildBackup() {
   const photoRows = [];
   let maxParts = 1;
   for (const p of photos) {
-    const b64 = p.blob ? await blobToBase64(p.blob) : '';
+    const b64 = p.bytes ? bytesToBase64(p.bytes) : '';
     const parts = [];
     for (let i = 0; i < b64.length; i += CHUNK) parts.push(b64.slice(i, i + CHUNK));
     maxParts = Math.max(maxParts, parts.length);
-    photoRows.push([p.id, p.addressId, ts(p.createdAt), p.w, p.h, p.blob?.type || 'image/jpeg', parts.length, ...parts]);
+    photoRows.push([p.id, p.addressId, ts(p.createdAt), p.w, p.h, p.type || 'image/jpeg', parts.length, ...parts]);
   }
-  const settings = [...S.settings.values()].filter((s) => !['dvf', 'mapView'].includes(s.id));
+  const settings = [...S.settings.values()].filter((s) => !LOCAL_SETTINGS.includes(s.id));
   const counts = {
     contacts: S.contacts.size,
     passages: S.passages.size,
@@ -264,17 +281,90 @@ export async function buildBackup() {
       rows: [['id', 'adresse_id', 'cree_le', 'largeur', 'hauteur', 'type', 'nb_parties', ...Array.from({ length: maxParts }, (_, i) => `partie_${i + 1}`)], ...photoRows],
     },
   ];
-  return { bytes: writeXlsx(sheets), counts };
+  let bytes = writeXlsx(sheets);
+  // Le format protégé demande un contenu de plus de 4 Ko : sans compression, c'est toujours le cas.
+  if (bytes.length < 6000) bytes = writeXlsx(sheets, { level: 0 });
+  return { bytes, counts };
 }
 
+// ---------- Mot de passe des sauvegardes ----------
+const pwdField = (name, label, value = '') => `<label class="field"><span>${esc(label)}</span><div class="with-actions">
+  <input name="${name}" type="password" value="${esc(value)}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
+  <button type="button" class="copy-btn" data-showpwd aria-label="Afficher">Voir</button></div></label>`;
+function bindShow(body) {
+  body.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-showpwd]');
+    if (!b) return;
+    const input = b.parentElement.querySelector('input');
+    input.type = input.type === 'password' ? 'text' : 'password';
+    b.textContent = input.type === 'password' ? 'Voir' : 'Cacher';
+  });
+}
+
+export async function askNewBackupPassword({ change = false } = {}) {
+  return dialog({
+    title: change ? 'Nouveau mot de passe des sauvegardes' : 'Protéger tes sauvegardes',
+    body: `<p>Chaque fichier de sauvegarde sera protégé par ce mot de passe : sans lui, impossible de l’ouvrir, dans Excel comme dans l’appli.</p>
+      ${pwdField('p1', 'Mot de passe')}${pwdField('p2', 'Confirmation')}
+      <p class="small muted" style="margin:0">Au moins ${MIN_PWD} caractères. Astuce : 3 ou 4 mots sans rapport entre eux, faciles à retenir pour toi. Note-le dans un endroit sûr : l’appli le garde, mais il te faudra sur un autre appareil ou si tu oublies ton code.</p>
+      <p class="small" data-err style="color:var(--rouge);margin:8px 0 0"></p>`,
+    onOpen: (b) => {
+      bindShow(b);
+      b.addEventListener('input', () => (b.querySelector('[data-err]').textContent = ''));
+      setTimeout(() => b.querySelector('[name="p1"]').focus(), 250);
+    },
+    buttons: [
+      { label: 'Annuler', value: null, kind: 'light' },
+      {
+        label: 'Enregistrer',
+        kind: 'primary',
+        validate: (b) => {
+          const p1 = b.querySelector('[name="p1"]').value;
+          const p2 = b.querySelector('[name="p2"]').value;
+          const err = p1.length < MIN_PWD ? `Il faut au moins ${MIN_PWD} caractères.` : p1 !== p2 ? 'Les deux saisies sont différentes.' : p1.trim() !== p1 ? 'Pas d’espace au début ni à la fin.' : '';
+          b.querySelector('[data-err]').textContent = err;
+          return !err;
+        },
+        value: (b) => b.querySelector('[name="p1"]').value,
+      },
+    ],
+  });
+}
+
+function askBackupPassword(message = '') {
+  return dialog({
+    title: 'Sauvegarde protégée',
+    body: `<p>Tape le mot de passe de ce fichier de sauvegarde.</p>${pwdField('p', 'Mot de passe')}<p class="small" data-err style="color:var(--rouge);margin:0">${esc(message)}</p>`,
+    onOpen: (b) => {
+      bindShow(b);
+      setTimeout(() => b.querySelector('[name="p"]').focus(), 250);
+    },
+    buttons: [
+      { label: 'Annuler', value: null, kind: 'light' },
+      { label: 'Ouvrir', kind: 'primary', value: (b) => b.querySelector('[name="p"]').value || null },
+    ],
+  });
+}
+
+export const hasBackupPassword = () => !!getSetting('backupPwd');
+export const backupPassword = () => getSetting('backupPwd');
+
 export async function exportBackup() {
+  let pwd = getSetting('backupPwd');
+  if (!pwd) {
+    pwd = await askNewBackupPassword();
+    if (!pwd) return 'aborted';
+    await setSetting('backupPwd', pwd);
+  }
   const { bytes, counts } = await buildBackup();
-  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const { encryptOffice } = await import('./officecrypto.js');
+  const protectedBytes = await encryptOffice(bytes, pwd);
+  const blob = new Blob([protectedBytes], { type: XLSX_MIME });
   const name = `prospection-sauvegarde-${dayStr()}.xlsx`;
   const r = await shareOrDownload(blob, name, 'Sauvegarde Prospection');
   if (r !== 'aborted') {
     await setSetting('lastExport', Date.now());
-    toast(`Sauvegarde exportée (${plural(counts.contacts, 'contact', 'contacts')})`);
+    toast(`Sauvegarde protégée exportée (${plural(counts.contacts, 'contact', 'contacts')})`);
   }
   return r;
 }
@@ -312,8 +402,10 @@ export function parseBackup(bytes) {
   data.settings = (wb.Reglages || [])
     .slice(1)
     .filter((r) => r[0])
-    .map((r) => ({ id: str(r[0]), value: safeJSON(r[1], null) }));
+    .map((r) => ({ id: str(r[0]), value: safeJSON(r[1], null) }))
+    .filter((x) => !LOCAL_SETTINGS.includes(x.id));
   data.photos = [];
+  data.photoData = [];
   const ph = wb.Photos || [];
   const head = (ph[0] || []).map(str);
   const ip = head.indexOf('partie_1');
@@ -322,7 +414,10 @@ export function parseBackup(bytes) {
     const n = num(r[head.indexOf('nb_parties')]) || 1;
     const b64 = r.slice(ip, ip + n).map(str).join('');
     if (!b64) continue;
-    data.photos.push({ id: str(r[0]), addressId: str(r[1]), createdAt: parseTs(r[2]) || Date.now(), w: num(r[3]), h: num(r[4]), blob: base64ToBlob(b64, str(r[head.indexOf('type')]) || 'image/jpeg') });
+    const type = str(r[head.indexOf('type')]) || 'image/jpeg';
+    const id = str(r[0]);
+    data.photos.push({ id, addressId: str(r[1]), createdAt: parseTs(r[2]) || Date.now(), w: num(r[3]), h: num(r[4]), type });
+    data.photoData.push({ id, type, bytes: base64ToBytes(b64) });
   }
   return { data, exportedAt: str(map.exporte_le) };
 }
@@ -331,7 +426,7 @@ export function pickBackupFile() {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    input.accept = `.xlsx,${XLSX_MIME}`;
     input.style.display = 'none';
     input.addEventListener('change', () => {
       resolve(input.files?.[0] || null);
@@ -342,12 +437,38 @@ export function pickBackupFile() {
   });
 }
 
+// Ouvre un fichier de sauvegarde (protégé ou non). Renvoie null si l'utilisateur abandonne.
+export async function readBackupFile(raw) {
+  if (!isProtected(raw)) return { parsed: parseBackup(raw), password: null };
+  const { decryptOffice } = await import('./officecrypto.js');
+  let pwd = getSetting('backupPwd');
+  let message = '';
+  for (;;) {
+    if (!pwd) {
+      pwd = await askBackupPassword(message);
+      if (!pwd) return null;
+    }
+    try {
+      const { bytes } = await decryptOffice(raw, pwd);
+      return { parsed: parseBackup(bytes), password: pwd };
+    } catch (e) {
+      if (e.code !== 'mdp') throw e;
+      message = 'Mot de passe incorrect.';
+      pwd = null;
+    }
+  }
+}
+
 export async function restoreFromFile() {
   const file = await pickBackupFile();
   if (!file) return false;
   let parsed;
+  let usedPwd = null;
   try {
-    parsed = parseBackup(new Uint8Array(await file.arrayBuffer()));
+    const r = await readBackupFile(new Uint8Array(await file.arrayBuffer()));
+    if (!r) return false;
+    parsed = r.parsed;
+    usedPwd = r.password;
   } catch (e) {
     await dialog({ title: 'Restauration impossible', body: `<p>${esc(e.message || 'Fichier illisible.')}</p>`, buttons: [{ label: 'OK', value: true, kind: 'primary' }] });
     return false;
@@ -359,8 +480,10 @@ export async function restoreFromFile() {
   );
   if (!ok) return false;
   const lastExport = getSetting('lastExport');
+  const pwd = getSetting('backupPwd') || usedPwd;
   await db.replaceAll(d);
   if (lastExport) await db.put('settings', { id: 'lastExport', value: lastExport });
+  if (pwd) await db.put('settings', { id: 'backupPwd', value: pwd });
   toast('Sauvegarde restaurée');
   setTimeout(() => location.reload(), 600);
   return true;

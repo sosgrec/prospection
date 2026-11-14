@@ -1,8 +1,8 @@
 // Onglet Tableau de bord : objectifs, îlots prioritaires, statistiques, bilan PDF et paramètres.
 import { icon } from '../icons.js';
 import { esc, fmtPct, fmtNum, fmtDate, fmtDayShort, fmtMonthShort, fmtMonth, fmtAgo, startOfMonth, addMonths, plural } from '../util.js';
-import { $, dialog, toast, confirmDialog } from '../ui.js';
-import { S, onChange, getSetting, restoreContact, purgeContact, saveScenario, purgeScenario, contactDisplay, resetDvfHints } from '../state.js';
+import { $, dialog, toast, confirmDialog, copyText } from '../ui.js';
+import { S, onChange, getSetting, setSetting, restoreContact, purgeContact, saveScenario, purgeScenario, contactDisplay, resetDvfHints, contactsSansAccord, aNettoyer, nettoyer, dernierEchange, RETENTION_ANS } from '../state.js';
 import {
   GOAL_DOORS,
   GOAL_MANDATS,
@@ -19,7 +19,9 @@ import {
   priorities,
   suggestions,
 } from '../stats.js';
-import { exportBackup, restoreFromFile, backupAgeDays } from '../backup.js';
+import { exportBackup, restoreFromFile, backupAgeDays, hasBackupPassword, backupPassword, askNewBackupPassword } from '../backup.js';
+import * as lock from '../lock.js';
+import { openMentionPage, mentionReady } from './mention.js';
 import { updateDvf } from '../dvfUpdate.js';
 import { storageInfo, requestPersistence } from '../db.js';
 import { fitIlot, reloadDvf } from './map.js';
@@ -130,6 +132,52 @@ function statsHTML() {
       .join('')}</tbody></table></div></div>`;
 }
 
+function rgpdHTML() {
+  const sans = contactsSansAccord().length;
+  const n = aNettoyer();
+  const old = n.contacts.length + n.passages.length;
+  return `
+    <div class="section-title">Données personnelles (RGPD)</div>
+    <div class="card">
+      <h3>${icon('shield', 18)} Accords</h3>
+      <p class="small ${sans ? '' : 'muted'}" style="margin:0 ${sans ? '0 10px' : ''};${sans ? 'color:#8a5100' : ''}">${
+        sans
+          ? `${sans === 1 ? '1 contact a' : `${sans} contacts ont`} un téléphone ou un email sans accord noté. Demande l’accord, ou efface ces coordonnées.`
+          : 'Tous tes contacts avec téléphone ou email ont un accord noté.'
+      }</p>
+      ${sans ? '<button type="button" class="btn btn-light btn-block btn-small" data-sansaccord>Voir la liste</button>' : ''}
+    </div>
+    <div class="card">
+      <h3>${icon('clock', 18)} Règle des ${RETENTION_ANS} ans</h3>
+      <p class="small muted" style="margin:0 0 8px">Un prospect se garde au plus ${RETENTION_ANS} ans après votre dernier échange. Les contacts avec un mandat signé ne sont pas concernés.</p>
+      <p class="small" style="margin:0;${old ? 'color:#8a5100' : ''}">${
+        old ? `À supprimer : ${plural(n.contacts.length, 'contact', 'contacts')} et ${plural(n.passages.length, 'passage', 'passages')}.` : 'Rien à supprimer pour l’instant.'
+      }</p>
+      ${old ? '<button type="button" class="btn btn-light btn-block btn-small" data-cleanup style="margin-top:10px">Voir et supprimer</button>' : ''}
+    </div>
+    <div class="card">
+      <h3>${icon('info', 18)} Mention d’information</h3>
+      <p class="small muted" style="margin:0 0 10px">Le texte qui informe la personne de ses droits, à lui montrer ou à lui envoyer quand tu notes ses coordonnées.${mentionReady() ? '' : ' Commence par y mettre ton nom.'}</p>
+      <button type="button" class="btn btn-light btn-block btn-small" data-mentionpage>${mentionReady() ? 'Ouvrir' : 'Compléter'}</button>
+    </div>`;
+}
+
+function securityHTML() {
+  const d = lock.lockDelay();
+  const opts = [
+    [0, 'Immédiatement'],
+    [60, 'Après 1 minute'],
+    [300, 'Après 5 minutes'],
+    [900, 'Après 15 minutes'],
+  ];
+  return `<div class="card">
+      <h3>${icon('lock', 18)} Sécurité</h3>
+      <p class="small muted" style="margin:0 0 10px">Tes données sont chiffrées sur ce téléphone : l’appli s’ouvre avec ton code à 6 chiffres.</p>
+      <label class="field"><span>Verrouiller quand je quitte l’appli</span><select data-lockdelay>${opts.map(([v, l]) => `<option value="${v}" ${v === d ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <div class="btn-row"><button type="button" class="btn btn-light btn-small" data-locknow>${icon('lock', 16)} Verrouiller</button><button type="button" class="btn btn-light btn-small" data-changecode>Changer le code</button></div>
+    </div>`;
+}
+
 function settingsHTML(storage) {
   const age = backupAgeDays();
   const dvf = S.dvf;
@@ -143,10 +191,16 @@ function settingsHTML(storage) {
       <button type="button" class="btn btn-primary btn-block" data-pdf>${icon('pdf', 20)} Générer le bilan PDF</button>
     </div>
     <div class="section-title">Paramètres</div>
+    ${securityHTML()}
     <div class="card">
       <h3>${icon('download', 18)} Sauvegarde</h3>
-      <p class="small ${age == null || age > 7 ? '' : 'muted'}" style="margin:0 0 10px;${age == null || age > 7 ? 'color:#a16207' : ''}">${age == null ? 'Aucune sauvegarde pour l’instant.' : `Dernier export ${age === 0 ? "aujourd'hui" : `il y a ${plural(age, 'jour', 'jours')}`}.`} Le fichier .xlsx s’ouvre dans Excel ; enregistre-le dans ton Drive depuis le menu Partager.</p>
+      <p class="small ${age == null || age > 7 ? '' : 'muted'}" style="margin:0 0 10px;${age == null || age > 7 ? 'color:#a16207' : ''}">${age == null ? 'Aucune sauvegarde pour l’instant.' : `Dernier export ${age === 0 ? "aujourd'hui" : `il y a ${plural(age, 'jour', 'jours')}`}.`} Le fichier .xlsx est protégé par ton mot de passe : il s’ouvre dans Excel une fois le mot de passe saisi. Enregistre-le dans ton Drive depuis le menu Partager.</p>
       <div class="btn-row"><button type="button" class="btn btn-primary btn-small" data-export>${icon('download', 18)} Exporter</button><button type="button" class="btn btn-light btn-small" data-restore>${icon('upload', 18)} Restaurer</button></div>
+      <p class="small muted" style="margin:10px 0 0">${
+        hasBackupPassword()
+          ? `${icon('key', 15)} Mot de passe des sauvegardes défini. <button type="button" class="link-btn small" data-showpwd style="min-height:30px">Afficher</button> · <button type="button" class="link-btn small" data-changepwd style="min-height:30px">Changer</button>`
+          : `${icon('key', 15)} Tu choisiras le mot de passe des sauvegardes au premier export.`
+      }</p>
     </div>
     <div class="card">
       <h3>${icon('euro', 18)} Ventes DVF</h3>
@@ -182,6 +236,7 @@ export function initDashboard(root) {
       <div class="section-title">Mandats par mois</div>
       <div class="card">${barChart(monthlyMandats(12), { goal: GOAL_MANDATS, label: (d) => fmtMonthShort(d.start), height: 130 })}</div>
       ${statsHTML()}
+      ${rgpdHTML()}
       ${settingsHTML(storage)}`;
     root.scrollTop = y;
   };
@@ -193,10 +248,15 @@ export function initDashboard(root) {
   onChange(() => {
     if (root.classList.contains('active')) render();
   });
-  root.addEventListener('change', (e) => {
+  root.addEventListener('change', async (e) => {
     if (e.target.matches('[data-heat]')) {
       heatIlot = +e.target.value;
       render();
+    }
+    if (e.target.matches('[data-lockdelay]')) {
+      lock.setLockDelay(+e.target.value);
+      await setSetting('lockDelay', +e.target.value);
+      toast('Réglage enregistré');
     }
   });
   root.addEventListener('click', async (e) => {
@@ -243,7 +303,62 @@ export function initDashboard(root) {
       return render();
     }
     if (t.closest('[data-trash]')) return openTrash();
+    if (t.closest('[data-sansaccord]')) {
+      nav.goTab('contacts');
+      return document.getElementById('tab-contacts').dispatchEvent(new CustomEvent('contacts:filtre', { detail: 'accord' }));
+    }
+    if (t.closest('[data-cleanup]')) return openCleanup();
+    if (t.closest('[data-mentionpage]')) return openMentionPage();
+    if (t.closest('[data-locknow]')) return lock.lockNow();
+    if (t.closest('[data-changecode]')) {
+      if (await lock.changeCode()) toast('Code modifié');
+      return;
+    }
+    if (t.closest('[data-showpwd]')) {
+      const pwd = backupPassword();
+      return dialog({
+        title: 'Mot de passe des sauvegardes',
+        body: `<p class="pwd-show">${esc(pwd)}</p><p class="small muted" style="margin:0">Il ouvre tes fichiers de sauvegarde, dans Excel comme dans l’appli. Garde-le dans un endroit sûr.</p>`,
+        buttons: [
+          { label: 'Copier', value: 'copy', kind: 'light' },
+          { label: 'Fermer', value: null, kind: 'primary' },
+        ],
+      }).then((v) => v === 'copy' && copyText(pwd, 'Mot de passe copié'));
+    }
+    if (t.closest('[data-changepwd]')) {
+      const p = await askNewBackupPassword({ change: true });
+      if (p) {
+        await setSetting('backupPwd', p);
+        toast('Mot de passe changé : il protégera les prochaines sauvegardes');
+      }
+    }
   });
+}
+
+async function openCleanup() {
+  const n = aNettoyer();
+  if (!n.contacts.length && !n.passages.length) return toast('Rien à supprimer');
+  const ok = await dialog({
+    title: `Règle des ${RETENTION_ANS} ans`,
+    cls: 'tall',
+    body: `<p>À supprimer définitivement de l’appli :</p>
+      ${
+        n.contacts.length
+          ? `<div class="pick-list" style="margin:0 0 10px">${n.contacts
+              .map((c) => `<div class="li"><span class="li-main"><span class="li-title">${esc(contactDisplay(c))}</span><span class="li-sub">Dernier échange le ${fmtDate(dernierEchange(c))}</span></span></div>`)
+              .join('')}</div>`
+          : ''
+      }
+      ${n.passages.length ? `<p>${plural(n.passages.length, 'passage', 'passages')} d’avant le ${fmtDate(n.limit)}.</p>` : ''}
+      <p class="small muted" style="margin:0">Ce n’est pas annulable.</p>`,
+    buttons: [
+      { label: 'Annuler', value: false, kind: 'light' },
+      { label: 'Supprimer définitivement', value: true, kind: 'danger' },
+    ],
+  });
+  if (!ok) return;
+  const r = await nettoyer(n);
+  toast(`Supprimé : ${plural(r.contacts, 'contact', 'contacts')}, ${plural(r.passages, 'passage', 'passages')}`);
 }
 
 async function openTrash() {

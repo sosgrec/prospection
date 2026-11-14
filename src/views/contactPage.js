@@ -29,6 +29,7 @@ import {
   vendeurPotentiel,
   anneesInstalle,
   activeScenarios,
+  ACCORD_MODES,
 } from '../state.js';
 import { nav, register } from '../nav.js';
 import { pickAddress, pickFromList } from './pickers.js';
@@ -92,6 +93,10 @@ export function openContactPage(contactId, opts = {}) {
       await saveContact(c);
       const dirLinks = links.filter((l) => !l.logementId);
       await setContactLinks(c.id, dirLinks);
+      if (purgeRelances) {
+        for (const r of relancesOfContact(c.id)) if (!r.done) await deleteRelance(r.id);
+        purgeRelances = false;
+      }
       links = contactAddressLinks(c.id).map((l) => ({ ...l }));
       const first = !saved;
       saved = true;
@@ -113,6 +118,23 @@ export function openContactPage(contactId, opts = {}) {
       <div class="btn-row" style="margin:-4px 0 14px"><button type="button" class="btn btn-light btn-small" data-copyname>${icon('copy', 16)} Copier le nom</button></div>
       ${copyField('Téléphone', 'tel', c.tel, 'tel')}
       ${copyField('Email', 'email', c.email, 'email')}
+      <div class="consent" data-consent>
+        <label class="check"><input type="checkbox" name="accord" ${c.accord ? 'checked' : ''}/> <span><b>Accord pour garder ses coordonnées</b><br><span class="small muted">La personne accepte que je garde ses coordonnées pour la recontacter (appel, SMS, email).</span></span></label>
+        <div data-accorddetails style="${c.accord ? '' : 'display:none'}">
+          <div class="grid2" style="margin-top:6px">
+            <label class="field" style="margin:0"><span>Date de l’accord</span><input name="accordDate" type="date" value="${esc(c.accordDate || todayStr())}" /></label>
+            <label class="field" style="margin:0"><span>Donné</span><select name="accordMode">${Object.entries(ACCORD_MODES)
+              .map(([k, l]) => `<option value="${k}" ${(c.accordMode || 'oral') === k ? 'selected' : ''}>${l}</option>`)
+              .join('')}</select></label>
+          </div>
+        </div>
+        <p class="consent-warn" data-accordwarn hidden>${icon('alert', 16)} Coordonnées gardées sans accord noté. Demande-le à la personne, ou efface son téléphone et son email.</p>
+        <div class="consent-info"><span class="small muted">Info RGPD :</span>
+          <button type="button" class="link-btn small" data-mention="sms">${icon('message', 16)} SMS</button>
+          <button type="button" class="link-btn small" data-mention="mail">${icon('mail', 16)} Email</button>
+          <button type="button" class="link-btn small" data-mention="show">${icon('info', 16)} Afficher</button>
+        </div>
+      </div>
     </div>
     <div class="section-title">Statut</div>
     <div class="card">
@@ -152,7 +174,7 @@ export function openContactPage(contactId, opts = {}) {
     <div class="card" data-links></div>
     <div class="section-title">Remarques</div>
     <div class="card">
-      <div class="with-actions" style="align-items:flex-start"><textarea name="remarques" rows="4" style="flex:1;min-height:100px;border:1px solid #d6dae0;border-radius:11px;padding:11px 12px;font-size:16px">${esc(c.remarques || '')}</textarea><button type="button" class="copy-btn" data-copy="remarques">${icon('copy', 20)}</button></div>
+      <div class="with-actions" style="align-items:flex-start"><textarea name="remarques" rows="4" style="flex:1;min-height:100px;border:1px solid #d6dae0;border-radius:11px;padding:11px 12px;font-size:16px" placeholder="Faits utiles uniquement : projet, délais, logement. Rien sur la santé, la religion, les opinions ou la vie privée.">${esc(c.remarques || '')}</textarea><button type="button" class="copy-btn" data-copy="remarques">${icon('copy', 20)}</button></div>
       <div class="field" style="margin:14px 0 0"><span>Étiquettes</span><div data-tags></div></div>
     </div>
     <div class="section-title">Relances</div>
@@ -196,8 +218,22 @@ export function openContactPage(contactId, opts = {}) {
       nePlusSolliciter: nePlus,
       nePlusDate: nePlus ? c.nePlusDate || todayStr() : null,
       tags: tags.getValues(),
+      accord: val('accord').checked,
+      accordDate: val('accord').checked ? val('accordDate').value || todayStr() : null,
+      accordMode: val('accord').checked ? val('accordMode').value || 'oral' : null,
     };
   }
+
+  // Alerte « coordonnées sans accord » (ne bloque rien)
+  const renderConsent = () => {
+    const coords = val('tel').value.trim() || val('email').value.trim();
+    const ok = val('accord').checked;
+    $('[data-accorddetails]', body).style.display = ok ? '' : 'none';
+    $('[data-accordwarn]', body).hidden = !coords || ok || val('nePlusSolliciter').checked;
+    $('[data-consent]', body).classList.toggle('warn', !!coords && !ok && !val('nePlusSolliciter').checked);
+  };
+  renderConsent();
+  let purgeRelances = false;
 
   const renderVendeur = () => {
     const tmp = { occupation: segValue(body, 'occupation'), anneeArrivee: val('anneeArrivee').value };
@@ -273,9 +309,48 @@ export function openContactPage(contactId, opts = {}) {
     if (w.has('passages') || w.has('scenarios')) renderHistory();
   });
 
-  body.addEventListener('change', (e) => {
+  const clearFields = (names) => {
+    for (const n of names) {
+      const el = val(n);
+      if (el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    }
+  };
+  body.addEventListener('change', async (e) => {
     if (e.target.name === 'mandatSigne') $('[data-mandatdate]', body).style.display = e.target.checked ? '' : 'none';
-    if (e.target.name === 'nePlusSolliciter' && e.target.checked) toast('Pense à enregistrer : l’adresse passera en rouge');
+    if (e.target.name === 'accord' && !e.target.checked && (val('tel').value.trim() || val('email').value.trim())) {
+      const r = await dialog({
+        title: 'Accord retiré',
+        body: '<p>Sans son accord, tu ne dois plus garder ses coordonnées. Effacer son téléphone et son email ?</p>',
+        buttons: [
+          { label: 'Garder', value: false, kind: 'light' },
+          { label: 'Effacer', value: true, kind: 'primary' },
+        ],
+      });
+      if (r) {
+        clearFields(['tel', 'email']);
+        toast('Pense à enregistrer');
+      }
+    }
+    if (e.target.name === 'nePlusSolliciter' && e.target.checked) {
+      const extra = ['tel', 'email', 'projet', 'remarques', 'anneeArrivee', 'surface', 'pieces'].some((n) => val(n).value.trim()) || relancesOfContact(c.id).some((r) => !r.done);
+      const r = extra
+        ? await dialog({
+            title: 'Ne garder que le nom et l’adresse ?',
+            body: '<p>Pour te souvenir de ne plus la solliciter, son nom et son adresse suffisent. Tu peux effacer le reste : téléphone, email, projet, remarques, logement, et ses relances à venir.</p>',
+            buttons: [
+              { label: 'Tout garder', value: false, kind: 'light' },
+              { label: 'Effacer le reste', value: true, kind: 'primary' },
+            ],
+          })
+        : false;
+      if (r) {
+        clearFields(['tel', 'email', 'projet', 'remarques', 'anneeArrivee', 'surface', 'pieces', 'logType', 'etat', 'accord']);
+        purgeRelances = true;
+      }
+      toast('Pense à enregistrer : l’adresse passera en rouge');
+    }
+    renderConsent();
     if (e.target.matches('[data-role]')) {
       links[+e.target.dataset.role].role = e.target.value;
       page.setDirty(true);
@@ -284,7 +359,19 @@ export function openContactPage(contactId, opts = {}) {
   });
   body.addEventListener('input', (e) => {
     if (e.target.name === 'anneeArrivee') renderVendeur();
+    if (e.target.name === 'tel' || e.target.name === 'email') renderConsent();
   });
+  // Appeler ou écrire sans accord noté : simple vérification.
+  const accordOk = async (what) =>
+    val('accord').checked ||
+    (await dialog({
+      title: 'Aucun accord noté',
+      body: '<p>Pour de la prospection, la personne doit avoir donné son accord avant que tu l’appelles ou lui écrives. Si elle te l’a donné, coche « Accord pour garder ses coordonnées ».</p>',
+      buttons: [
+        { label: 'Annuler', value: false, kind: 'light' },
+        { label: what === 'call' ? 'Appeler quand même' : 'Écrire quand même', value: true, kind: 'primary' },
+      ],
+    }));
   body.addEventListener('click', async (e) => {
     const t = e.target;
     if (t.closest('.seg[data-seg="occupation"]')) setTimeout(renderVendeur);
@@ -293,12 +380,28 @@ export function openContactPage(contactId, opts = {}) {
     if (t.closest('[data-copyname]')) return copyText([val('prenom').value, val('nom').value].filter(Boolean).join(' '), 'Nom copié');
     if (t.closest('[data-call]')) {
       const n = phoneKey(val('tel').value);
-      if (n) location.href = `tel:${n}`;
+      if (n && (await accordOk('call'))) location.href = `tel:${n}`;
       return;
     }
     if (t.closest('[data-mail]')) {
       const m = val('email').value.trim();
-      if (m) location.href = `mailto:${m}`;
+      if (m && (await accordOk('mail'))) location.href = `mailto:${m}`;
+      return;
+    }
+    const mt = t.closest('[data-mention]');
+    if (mt) {
+      const { mentionText, mentionReady, openMentionPage } = await import('./mention.js');
+      if (mt.dataset.mention === 'show' || !mentionReady()) return openMentionPage();
+      const text = mentionText();
+      if (mt.dataset.mention === 'sms') {
+        const n = phoneKey(val('tel').value);
+        if (!n) return toast('Ajoute d’abord son numéro de téléphone');
+        location.href = `sms:${n}&body=${encodeURIComponent(text)}`;
+      } else {
+        const m = val('email').value.trim();
+        if (!m) return toast('Ajoute d’abord son email');
+        location.href = `mailto:${m}?subject=${encodeURIComponent('Vos coordonnées et vos droits')}&body=${encodeURIComponent(text)}`;
+      }
       return;
     }
     const go = t.closest('[data-goaddr]');

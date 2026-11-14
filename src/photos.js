@@ -54,17 +54,32 @@ export async function compress(file, max = 1600, quality = 0.75) {
   return { blob, w, h };
 }
 
+// La description de la photo et l'image sont chiffrées séparément : la liste se charge vite au démarrage.
 export async function addPhoto(addressId, file) {
   const { blob, w, h } = await compress(file);
-  const rec = { id: uid(), addressId, blob, w, h, createdAt: Date.now() };
-  await db.put('photos', rec);
-  S.photos.set(rec.id, { id: rec.id, addressId, createdAt: rec.createdAt, w, h });
+  const type = blob.type || 'image/jpeg';
+  const meta = { id: uid(), addressId, w, h, type, createdAt: Date.now() };
+  await savePhotoRecords([{ ...meta, bytes: new Uint8Array(await blob.arrayBuffer()) }]);
+  S.photos.set(meta.id, meta);
   emit('photos');
-  return rec;
+  return meta;
+}
+
+// Écrit des photos complètes { id, addressId, w, h, type, createdAt, bytes }.
+export function savePhotoRecords(list) {
+  const ops = [];
+  for (const { bytes, ...meta } of list) {
+    ops.push({ store: 'photos', type: 'put', value: meta });
+    ops.push({ store: 'photoData', type: 'put', value: { id: meta.id, type: meta.type || 'image/jpeg', bytes } });
+  }
+  return db.batch(ops);
 }
 
 export async function deletePhoto(id) {
-  await db.del('photos', id);
+  await db.batch([
+    { store: 'photos', type: 'del', id },
+    { store: 'photoData', type: 'del', id },
+  ]);
   S.photos.delete(id);
   const u = urlCache.get(id);
   if (u) URL.revokeObjectURL(u);
@@ -74,9 +89,9 @@ export async function deletePhoto(id) {
 
 export async function photoURL(id) {
   if (urlCache.has(id)) return urlCache.get(id);
-  const rec = await db.get('photos', id);
-  if (!rec?.blob) return '';
-  const u = URL.createObjectURL(rec.blob);
+  const rec = await db.get('photoData', id);
+  if (!rec?.bytes) return '';
+  const u = URL.createObjectURL(new Blob([rec.bytes], { type: rec.type || 'image/jpeg' }));
   urlCache.set(id, u);
   return u;
 }
@@ -108,5 +123,18 @@ export async function viewPhoto(id) {
   });
 }
 
-// Pour la sauvegarde : lecture de toutes les photos avec leur contenu.
-export const allPhotoRecords = () => db.getAll('photos');
+// Pour la sauvegarde : toutes les photos avec leur image.
+export async function allPhotoRecords() {
+  const out = [];
+  for (const m of S.photos.values()) {
+    const d = await db.get('photoData', m.id);
+    if (d?.bytes) out.push({ ...m, type: d.type || m.type || 'image/jpeg', bytes: d.bytes });
+  }
+  return out;
+}
+
+// Images en mémoire : libérées au verrouillage.
+export function clearPhotoCache() {
+  for (const u of urlCache.values()) URL.revokeObjectURL(u);
+  urlCache.clear();
+}

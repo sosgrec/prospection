@@ -22,6 +22,7 @@ export const INTERETS = ['Aucun', 'Tiède', 'Chaud'];
 export const OCCUPATIONS = { proprietaire: 'Propriétaire', locataire: 'Locataire' };
 export const LOGEMENT_TYPES = ['Maison', 'Appartement', 'Studio', 'Duplex', 'Autre'];
 export const ETATS = ['À rénover', 'Correct', 'Bon état', 'Refait à neuf'];
+export const ACCORD_MODES = { oral: 'À l’oral', ecrit: 'Par écrit', message: 'SMS / email' };
 
 export const S = {
   base: null, // données publiques (îlots, adresses, parcelles…)
@@ -112,7 +113,7 @@ export async function loadUserData() {
   fill(S.scenarios, scenarios);
   fill(S.addrUser, addrs);
   S.photos.clear();
-  for (const p of photos) S.photos.set(p.id, { id: p.id, addressId: p.addressId, createdAt: p.createdAt, w: p.w, h: p.h });
+  for (const p of photos) S.photos.set(p.id, { id: p.id, addressId: p.addressId, createdAt: p.createdAt, w: p.w, h: p.h, type: p.type });
   fill(S.settings, settings);
   // Adresses ajoutées à la main
   for (const u of addrs) if (u.custom && !S.addrs.has(u.id)) S.addrs.set(u.id, customAddr(u));
@@ -392,6 +393,67 @@ export function scenariosPresentesAdresse(addressId) {
 }
 export const activeScenarios = () =>
   [...S.scenarios.values()].filter((s) => !s.deletedAt).sort((a, b) => (a.titre || '').localeCompare(b.titre || '', 'fr'));
+
+// ---------- RGPD ----------
+// Coordonnées gardées sans accord noté (hors personnes qui ne veulent plus être sollicitées).
+export const hasCoords = (c) => !!((c?.tel || '').trim() || (c?.email || '').trim());
+export const accordManquant = (c) => !!c && !c.deletedAt && !c.nePlusSolliciter && hasCoords(c) && !c.accord;
+export const contactsSansAccord = () => activeContacts().filter(accordManquant);
+
+// Règle des 3 ans : un prospect se garde au plus 3 ans après le dernier échange avec lui.
+export const RETENTION_ANS = 3;
+const RETENTION_MS = RETENTION_ANS * 365.25 * 86400000;
+export function dernierEchange(c) {
+  let t = c.createdAt || 0;
+  for (const p of passagesOfContact(c.id)) if (p.result !== 'absent' && p.t > t) t = p.t;
+  for (const d of [c.accordDate, c.nePlusDate, c.mandatDate]) if (d) t = Math.max(t, dayMs(d));
+  for (const r of relancesOfContact(c.id)) if (r.done && r.doneAt > t) t = r.doneAt;
+  return t;
+}
+export function aNettoyer(now = Date.now()) {
+  const limit = now - RETENTION_MS;
+  return {
+    limit,
+    contacts: activeContacts()
+      .filter((c) => !c.mandatSigne && dernierEchange(c) < limit)
+      .sort((a, b) => dernierEchange(a) - dernierEchange(b)),
+    passages: [...S.passages.values()].filter((p) => p.t < limit),
+  };
+}
+// Suppression définitive (contacts + leurs liens et relances, vieux passages), en une seule écriture.
+export async function nettoyer({ contacts, passages }) {
+  const ops = [];
+  const gone = new Set(contacts.map((c) => c.id));
+  for (const id of gone) {
+    S.contacts.delete(id);
+    ops.push({ store: 'contacts', type: 'del', id });
+  }
+  for (const l of [...S.links.values()])
+    if (gone.has(l.contactId)) {
+      S.links.delete(l.id);
+      ops.push({ store: 'links', type: 'del', id: l.id });
+    }
+  for (const r of [...S.relances.values()])
+    if (gone.has(r.contactId)) {
+      S.relances.delete(r.id);
+      ops.push({ store: 'relances', type: 'del', id: r.id });
+    }
+  const oldIds = new Set(passages.map((p) => p.id));
+  for (const id of oldIds) {
+    S.passages.delete(id);
+    ops.push({ store: 'passages', type: 'del', id });
+  }
+  // Passages plus récents qui mentionnaient une personne supprimée : on retire juste le lien.
+  for (const p of S.passages.values())
+    if (p.contactId && gone.has(p.contactId)) {
+      p.contactId = null;
+      ops.push({ store: 'passages', type: 'put', value: p });
+    }
+  await db.batch(ops);
+  emit('contacts');
+  emit('passages');
+  return { contacts: gone.size, passages: oldIds.size };
+}
 
 // ---------- Recherche ----------
 export function searchContacts(q) {
