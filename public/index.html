@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Prospection" />
-    <meta name="theme-color" content="#1d4ed8" />
+    <meta name="theme-color" content="#1d2024" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -21,7 +21,6 @@
         if (t && t.vars) {
           for (var k in t.vars) document.documentElement.style.setProperty(k, t.vars[k]);
           document.documentElement.dataset.theme = t.id;
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', t.vars['--head']);
         }
       } catch (e) {}
     </script>

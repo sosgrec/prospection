@@ -143,6 +143,8 @@ p .ic,
   flex: 1;
   position: relative;
   overflow: hidden;
+  /* Les couches de la carte (fond IGN, adresses) restent sous la barre d'onglets flottante */
+  isolation: isolate;
 }
 .tab {
   position: absolute;
@@ -1187,7 +1189,8 @@ textarea:focus {
 .legend {
   position: absolute;
   left: 10px;
-  bottom: calc(var(--tabbar-h) + var(--tabbar-gap) + 10px);
+  /* place laissée dessous pour la mention « © IGN » */
+  bottom: calc(var(--tabbar-h) + var(--tabbar-gap) + 24px);
   z-index: 400;
   background: rgba(255, 255, 255, 0.94);
   border-radius: 12px;
@@ -1264,18 +1267,29 @@ textarea:focus {
   font-size: 10px;
 }
 .tab-map .leaflet-bottom {
-  bottom: calc(var(--tabbar-h) + var(--tabbar-gap) + 4px);
+  bottom: calc(var(--tabbar-h) + var(--tabbar-gap) + 2px);
 }
-/* Voile léger sous l'heure et la batterie quand la carte passe dessous */
+/* Heure et batterie au premier plan, sur une bande en transparence légère : la carte reste visible dessous */
 .map-scrim {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: calc(var(--top-inset) * 1.6);
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0));
+  height: var(--top-inset);
+  background: rgba(18, 20, 24, 0.2);
+  backdrop-filter: blur(10px) saturate(1.5);
+  -webkit-backdrop-filter: blur(10px) saturate(1.5);
   z-index: 480;
   pointer-events: none;
+}
+.map-scrim::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: calc(var(--top-inset) * 0.35);
+  background: linear-gradient(to bottom, rgba(18, 20, 24, 0.14), rgba(18, 20, 24, 0));
 }
 .layer-opt {
   display: flex;

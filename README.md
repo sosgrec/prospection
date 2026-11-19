@@ -48,7 +48,7 @@ Couleur de l'appli au choix (Tableau, Paramètres, Apparence) : bleu, rouge, bor
 - `scripts/build-data.mjs` : découpe le cadastre, les adresses et les ventes selon les 9 îlots.
 - `scripts/build.mjs` : assemble le site dans `docs/` avec le service worker (hors connexion).
 - `data-src/ilots.kml` : contours des îlots exportés de Google My Maps (zones rouges).
-- `tests/` : tests automatisés dans Chrome au format iPhone. `tests/theme.mjs plein|bande` vérifie la mise en page avec ou sans la barre d'état d'iOS au-dessus de l'appli. `tests/officecrypto.mjs` vérifie le fichier protégé avec msoffcrypto-tool, olefile et LibreOffice (Python : `pip install msoffcrypto-tool`).
+- `tests/` : tests automatisés dans Chrome au format iPhone. `tests/sauvegarde.mjs` remplit une appli, l'exporte puis la restaure dans une appli vierge (comme une réinstallation de l'icône) et compare tout, champ par champ. `tests/theme.mjs plein|bande` vérifie la mise en page avec ou sans la barre d'état d'iOS au-dessus de l'appli. `tests/officecrypto.mjs` vérifie le fichier protégé avec msoffcrypto-tool, olefile et LibreOffice (Python : `pip install msoffcrypto-tool`).
 
 ## Mise à jour automatique des ventes DVF
 

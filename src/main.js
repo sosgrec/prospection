@@ -3,9 +3,10 @@ import 'leaflet/dist/leaflet.css';
 import './styles.css';
 import { openDB, requestPersistence, unreadable } from './db.js';
 import * as state from './state.js';
+import * as photos from './photos.js';
 import { S, loadBase, loadUserData, onChange, getSetting } from './state.js';
 import * as lock from './lock.js';
-import { applyTheme, savedThemeId } from './theme.js';
+import { applyTheme, savedThemeId, setStatusBar } from './theme.js';
 import { loadDvf } from './dvfUpdate.js';
 import { icon } from './icons.js';
 import { $, $$, html, toast, closeSheet, isDialogOpen, dialog } from './ui.js';
@@ -38,6 +39,7 @@ function goTab(name) {
   for (const s of $$('.tab')) s.classList.toggle('active', s.dataset.tab === name);
   for (const b of $$('#tabbar button')) b.classList.toggle('on', b.dataset.tab === name);
   const sec = $(`#tab-${name}`);
+  setStatusBar(name !== 'carte');
   sec.dispatchEvent(new Event('tab:show'));
   if (name === 'carte') mapResized();
 }
@@ -195,5 +197,5 @@ window.addEventListener('unhandledrejection', (e) => {
   toast('Erreur : ' + (e.reason?.message || e.reason || 'inconnue'));
 });
 
-globalThis.__app = { S, nav, state }; // utile pour les tests automatisés
+globalThis.__app = { S, nav, state, photos }; // utile pour les tests automatisés
 boot();

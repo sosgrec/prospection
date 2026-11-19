@@ -26,9 +26,33 @@ try {
   const mapR = await rect('#map');
   check(mapR.top === 0 && mapR.bottom === 844, 'carte sur toute la hauteur de l’écran');
   check((await rect('.map-search')).top === TOP + 10, 'recherche placée sous l’heure et la batterie');
-  check(Math.abs((await rect('.map-scrim')).height - TOP * 1.6) < 1, TOP ? 'voile sous l’heure pour la lisibilité' : 'pas de voile quand iOS garde sa bande');
+  check(Math.abs((await rect('.map-scrim')).height - TOP) < 1, TOP ? 'voile sous l’heure pour la lisibilité' : 'pas de voile quand iOS garde sa bande');
   const tb = await rect('#tabbar');
   check(tb.bottom === 844 - 24 && tb.left === 12 && tb.right === 378, 'barre d’onglets flottante, en bas, décalée des bords');
+  // Fond de carte opaque (comme les plans IGN sur l'iPhone) : la barre doit rester visible par-dessus.
+  await page.evaluate(() => {
+    const d = document.createElement('div');
+    d.id = 'faux-fond';
+    d.style.cssText = 'position:absolute;left:-3000px;top:-3000px;width:9000px;height:9000px;background:rgb(255,0,0)';
+    document.querySelector('.leaflet-tile-pane').appendChild(d);
+  });
+  await sleep(200);
+  const b64 = await page.screenshot({ clip: { x: 300, y: tb.top + 31, width: 1, height: 1 }, encoding: 'base64' });
+  const rgb = await page.evaluate(async (b) => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    return [...x.getImageData(0, 0, 1, 1).data];
+  }, b64);
+  const red = rgb[0] > 200 && rgb[1] < 80 && rgb[2] < 80;
+  await shot('02b-carte-fond-opaque');
+  check(red === false, 'barre d’onglets visible au-dessus d’un fond de carte opaque');
+  await page.evaluate(() => document.getElementById('faux-fond').remove());
   await page.evaluate(() => __app.nav.goTab('contacts'));
   await sleep(500);
   await shot('03-contacts');

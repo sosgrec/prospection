@@ -7,13 +7,13 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Prospection" />
-    <meta name="theme-color" content="#1d4ed8" />
+    <meta name="theme-color" content="#1d2024" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="icons/icon-192.png" />
     <title>Prospection</title>
-    <link rel="stylesheet" href="app.css?v=2026-11-19-e1aff171" />
+    <link rel="stylesheet" href="app.css?v=2026-11-19-0e4044fe" />
     <script>
       // Couleur du thème choisi, appliquée avant l'affichage (voir src/theme.js)
       try {
@@ -21,7 +21,6 @@
         if (t && t.vars) {
           for (var k in t.vars) document.documentElement.style.setProperty(k, t.vars[k]);
           document.documentElement.dataset.theme = t.id;
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', t.vars['--head']);
         }
       } catch (e) {}
     </script>
@@ -46,6 +45,6 @@
       <div class="boot-logo"></div>
       <p id="boot-msg">Chargement…</p>
     </div>
-    <script type="module" src="app.js?v=2026-11-19-e1aff171"></script>
+    <script type="module" src="app.js?v=2026-11-19-0e4044fe"></script>
   </body>
 </html>

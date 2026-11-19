@@ -19,13 +19,7 @@ export async function start({ dir = 'dist', insets = { top: 0, bottom: 34 } } = 
     args: ['--no-sandbox', '--disable-gpu', '--no-proxy-server', '--lang=fr-FR', '--disable-features=Translate'],
   });
   const page = await browser.newPage();
-  await page.emulate({
-    viewport: { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-  });
-  await page.emulateTimezone('Europe/Paris');
-  const cdp = await page.createCDPSession();
-  await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { left: 0, right: 0, ...insets } });
+  await setupPage(page, insets);
   const logs = [];
   page.on('console', (m) => {
     if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`);
@@ -43,6 +37,32 @@ export async function start({ dir = 'dist', insets = { top: 0, bottom: 34 } } = 
     srv.kill();
   };
   return { browser, page, logs, stop };
+}
+
+export async function setupPage(page, insets = { top: 0, bottom: 34 }) {
+  await page.emulate({
+    viewport: { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+  });
+  await page.emulateTimezone('Europe/Paris');
+  const cdp = await page.createCDPSession();
+  await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { left: 0, right: 0, ...insets } });
+  return page;
+}
+
+// Page dans un espace de stockage séparé : comme une icône tout juste réinstallée (aucune donnée).
+export async function freshInstall(browser, logs = []) {
+  const ctx = await browser.createBrowserContext();
+  const page = await setupPage(await ctx.newPage());
+  page.on('console', (m) => {
+    if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`);
+  });
+  page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
+  page.on('dialog', async (d) => {
+    logs.push(`[dialog natif !] ${d.message()}`);
+    await d.dismiss();
+  });
+  return { ctx, page };
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

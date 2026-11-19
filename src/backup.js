@@ -3,7 +3,7 @@ import * as db from './db.js';
 import { writeXlsx, readXlsx } from './xlsx.js';
 import { S, setSetting, getSetting, addrLabel, contactMainAddress } from './state.js';
 import { allPhotoRecords } from './photos.js';
-import { dayStr, localDateTime, parseLocalDateTime, shareOrDownload, fmtDate, esc, plural } from './util.js';
+import { dayStr, parseLocalDateTime, shareOrDownload, fmtDate, esc, plural } from './util.js';
 import { dialog, toast, confirmDialog } from './ui.js';
 
 export const FORMAT = 'prospection-sauvegarde';
@@ -29,7 +29,13 @@ function excelSerialToLocal(serial) {
   const d = new Date(Math.round((serial - 25569) * 86400000));
   return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()).getTime();
 }
-const ts = (ms) => (ms ? localDateTime(ms) : '');
+// Date et heure locales à la seconde (lisible dans Excel ; l'ordre des passages d'une même minute est gardé).
+const pad2 = (n) => String(n).padStart(2, '0');
+const ts = (ms) => {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return `${dayStr(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+};
 const parseTs = (v) => {
   if (v === '' || v == null) return null;
   if (typeof v === 'number') return v > 1e11 ? v : excelSerialToLocal(v);
@@ -234,8 +240,24 @@ function base64ToBytes(b64) {
   return u8;
 }
 
+// Lignes toujours dans le même ordre (création, puis identifiant) : un fichier lisible et stable d'un export à l'autre.
+const byKey = (...keys) => (a, b) => {
+  for (const k of keys) {
+    const x = typeof k === 'function' ? k(a) : a[k];
+    const y = typeof k === 'function' ? k(b) : b[k];
+    if (x === y) continue;
+    if (x === undefined || x === null) return -1;
+    if (y === undefined || y === null) return 1;
+    return x < y ? -1 : 1;
+  }
+  return 0;
+};
+const sorted = (map, ...keys) => [...map.values()].sort(byKey(...keys, 'id'));
+// Les heures sont gardées à la seconde : on trie à la seconde pour garder le même ordre après restauration.
+const sec = (k) => (x) => Math.floor((x[k] || 0) / 1000);
+
 export async function buildBackup() {
-  const photos = await allPhotoRecords();
+  const photos = (await allPhotoRecords()).sort(byKey(sec('createdAt'), 'id'));
   const photoRows = [];
   let maxParts = 1;
   for (const p of photos) {
@@ -245,7 +267,7 @@ export async function buildBackup() {
     maxParts = Math.max(maxParts, parts.length);
     photoRows.push([p.id, p.addressId, ts(p.createdAt), p.w, p.h, p.type || 'image/jpeg', parts.length, ...parts]);
   }
-  const settings = [...S.settings.values()].filter((s) => !LOCAL_SETTINGS.includes(s.id));
+  const settings = sorted(S.settings).filter((s) => !LOCAL_SETTINGS.includes(s.id));
   const counts = {
     contacts: S.contacts.size,
     passages: S.passages.size,
@@ -262,18 +284,18 @@ export async function buildBackup() {
         ['cle', 'valeur'],
         ['format', FORMAT],
         ['version_format', FORMAT_VERSION],
-        ['exporte_le', localDateTime(Date.now())],
+        ['exporte_le', ts(Date.now())],
         ...Object.entries(counts).map(([k, v]) => [`nombre_${k}`, v]),
         ['note', 'Ne modifie pas les colonnes « id » : elles relient les feuilles entre elles.'],
       ],
     },
-    { name: TABLES.contacts.sheet, widths: TABLES.contacts.widths, rows: tableRows('contacts', [...S.contacts.values()]) },
-    { name: TABLES.addrs.sheet, widths: TABLES.addrs.widths, rows: tableRows('addrs', [...S.addrUser.values()]) },
-    { name: TABLES.logements.sheet, widths: TABLES.logements.widths, rows: tableRows('logements', [...S.logements.values()]) },
-    { name: TABLES.links.sheet, widths: TABLES.links.widths, rows: tableRows('links', [...S.links.values()]) },
-    { name: TABLES.passages.sheet, widths: TABLES.passages.widths, rows: tableRows('passages', [...S.passages.values()].sort((a, b) => a.t - b.t)) },
-    { name: TABLES.relances.sheet, widths: TABLES.relances.widths, rows: tableRows('relances', [...S.relances.values()]) },
-    { name: TABLES.scenarios.sheet, widths: TABLES.scenarios.widths, rows: tableRows('scenarios', [...S.scenarios.values()]) },
+    { name: TABLES.contacts.sheet, widths: TABLES.contacts.widths, rows: tableRows('contacts', sorted(S.contacts, sec('createdAt'))) },
+    { name: TABLES.addrs.sheet, widths: TABLES.addrs.widths, rows: tableRows('addrs', sorted(S.addrUser, (u) => addrLabel(u.id))) },
+    { name: TABLES.logements.sheet, widths: TABLES.logements.widths, rows: tableRows('logements', sorted(S.logements, 'addressId', 'etageId', 'order')) },
+    { name: TABLES.links.sheet, widths: TABLES.links.widths, rows: tableRows('links', sorted(S.links, 'contactId', 'addressId')) },
+    { name: TABLES.passages.sheet, widths: TABLES.passages.widths, rows: tableRows('passages', sorted(S.passages, sec('t'))) },
+    { name: TABLES.relances.sheet, widths: TABLES.relances.widths, rows: tableRows('relances', sorted(S.relances, 'date', 'heure')) },
+    { name: TABLES.scenarios.sheet, widths: TABLES.scenarios.widths, rows: tableRows('scenarios', sorted(S.scenarios, sec('createdAt'))) },
     { name: 'Reglages', widths: [20, 60], rows: [['cle', 'valeur_json'], ...settings.map((s) => [s.id, JSON.stringify(s.value)])] },
     {
       name: 'Photos',
