@@ -45,6 +45,30 @@ body {
   background-color: var(--band);
   overscroll-behavior: none;
 }
+/* Appli installée en plein écran : l'heure est par-dessus l'appli, la teinte ne sert plus qu'à la bande
+   qu'iOS peut dessiner en bas de l'écran. On la met au gris clair du fond pour qu'elle se fonde. */
+html.plein {
+  --band: #f3f4f6;
+}
+html.plein #app,
+html.plein #pages .page {
+  background-color: var(--band) !important;
+}
+html.plein .mention-full {
+  background-color: #fff;
+}
+/* Appli installée, affichée sous l'heure : depuis iOS 26, tant que la page est moins haute que l'écran,
+   iOS raccourcit l'appli de la hauteur de l'heure et laisse une bande vide en bas (bug WebKit 301108).
+   La page fait donc au moins la hauteur de l'écran, et iOS lui donne tout l'écran. Le plafond 100lvh
+   l'empêche de défiler quand l'heure n'est pas par-dessus l'appli (la marge du haut vaut alors 0). */
+html.installee {
+  min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
+}
+@media (display-mode: standalone) {
+  html {
+    min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
+  }
+}
 body {
   font-size: 16px;
   line-height: 1.4;

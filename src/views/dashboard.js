@@ -235,6 +235,11 @@ function settingsHTML(storage) {
       }${storage?.usage != null ? ` Espace utilisé : ${fmtNum(storage.usage / 1048576, 1)} Mo.` : ''}</p>
       <p class="small muted" style="margin:10px 0 0">Toutes tes données restent sur cet appareil. Sources : cadastre DGFiP (Etalab, licence ouverte), adresses BANO © contributeurs OpenStreetMap (ODbL), ventes DVF (DGFiP, licence ouverte), fonds de carte IGN.</p>
       <p class="small muted" style="margin:6px 0 0">Version ${esc(globalThis.APP_VERSION || '')}</p>
+      ${
+        document.documentElement.classList.contains('installee')
+          ? `<p class="small muted" style="margin:2px 0 0" data-hauteur>Hauteur d’écran utilisée : ${Math.round(innerHeight)} sur ${screen.height} points</p>`
+          : ''
+      }
     </div>`;
 }
 

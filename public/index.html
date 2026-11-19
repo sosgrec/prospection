@@ -15,6 +15,25 @@
     <title>Prospection</title>
     <link rel="stylesheet" href="app.css?v=__VERSION__" />
     <script>
+      // Appli ouverte depuis l'écran d'accueil (installee) et affichée sous l'heure et la batterie (plein).
+      // Détecté avant l'affichage : iOS fixe la hauteur de l'appli dès l'ouverture (voir html.installee dans styles.css).
+      function prospectionEcran() {
+        try {
+          var root = document.documentElement;
+          root.classList.toggle(
+            'installee',
+            navigator.standalone === true || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches
+          );
+          var p = document.createElement('div');
+          p.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top)';
+          root.appendChild(p);
+          root.classList.toggle('plein', (parseFloat(getComputedStyle(p).paddingTop) || 0) > 0);
+          root.removeChild(p);
+        } catch (e) {}
+      }
+      prospectionEcran();
+      window.addEventListener('resize', prospectionEcran);
+      window.addEventListener('pageshow', prospectionEcran);
       // Couleur du thème choisi, appliquée avant l'affichage (voir src/theme.js)
       try {
         var t = JSON.parse(localStorage.getItem('prospection-theme') || 'null');

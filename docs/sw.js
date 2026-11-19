@@ -1,5 +1,5 @@
 // Service worker de Prospection : appli disponible hors connexion.
-const VERSION = '2026-11-19-467aa813';
+const VERSION = '2026-11-19-18e6530b';
 const PRECACHE = ["./","./app.css","./app.js","./data/base.json","./data/dvf.json","./icons/apple-touch-icon.png","./icons/icon-192.png","./icons/icon-512-maskable.png","./icons/icon-512.png","./icons/icon.svg","./index.html","./js/cfb-NWAIKMMR.js","./js/chunk-HP7DQG42.js","./js/chunk-MITYVAOH.js","./js/chunk-QXBYMTFZ.js","./js/chunk-SJA5FU7F.js","./js/chunk-VV34GD54.js","./js/jspdf.es.min-II2BJG5B.js","./js/jspdf.plugin.autotable-ZABY6DHG.js","./js/mention-QF45KEGY.js","./js/officecrypto-4Y4ZPEMC.js","./js/pdf-RTA2XOE5.js","./manifest.webmanifest"];
 const APP_CACHE = `prospection-app-${VERSION}`;
 const TILE_CACHE = 'prospection-tuiles';
