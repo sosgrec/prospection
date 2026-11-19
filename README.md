@@ -70,3 +70,7 @@ npm run build
 - Ventes : DVF (DGFiP), fichiers geo-dvf d'Etalab, Licence Ouverte 2.0.
 - Fonds de carte en ligne : IGN Géoplateforme.
 - Bibliothèques : Leaflet (BSD-2), fflate (MIT), jsPDF (MIT), @noble/hashes (MIT), cfb de SheetJS (Apache-2.0).
+
+## Suivi du projet
+
+Les documents de suivi (cahier des charges, fonctionnalités, bugs, décisions, journal des versions, cahier de test, sécurité et RGPD, procédure de reprise) sont dans [`suivi/`](suivi/README.md). Les règles de travail et le circuit d'un changement (Recette, puis prod) sont dans [`CLAUDE.md`](CLAUDE.md).
