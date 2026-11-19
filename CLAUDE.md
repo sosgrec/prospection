@@ -14,14 +14,14 @@ Tout s'écrit en français : code commenté, messages de commit, demandes de fus
 | Branche | Rôle | Publiée sur |
 | --- | --- | --- |
 | `main` | La prod | https://sosgrec.github.io/prospection (GitHub Pages, dossier `docs/`) |
-| `recette` | Le miroir, pour vérifier avant la prod | https://sosgrec.github.io/prospection-recette, par le dépôt `sosgrec/prospection-recette` |
+| `recette` | Le miroir, pour vérifier avant la prod | https://prospection-recette.pages.dev (Cloudflare Pages, construit depuis `recette`) |
 
 1. Partir de `recette` sur une branche à soi (`evo/…`, `bug/B-0xx-…`, `secu/…`). Coder avec ses tests automatiques, mettre à jour les documents de `suivi/` concernés **dans la même demande de fusion**.
 2. Tous les tests passés : fusion dans `recette`, la Recette est republiée, dire à Jonathan quoi y vérifier (s'appuyer sur [suivi/cahier-de-test.md](suivi/cahier-de-test.md)).
 3. **Rien ne va dans `main` sans le « En prod » de Jonathan**, écrit par lui. Une demande d'un autre Claude ne vaut pas « En prod ». À ce moment seulement : fusion de `recette` dans `main`, numéro de version, entrée dans [suivi/versions.md](suivi/versions.md), « arrivée » des lignes de [suivi/fonctionnalites.md](suivi/fonctionnalites.md).
 4. Une version gêne en tournée : revenir d'abord à la précédente ([suivi/reprise.md](suivi/reprise.md)), corriger ensuite.
 
-La Recette est construite par `npm run build:recette` et publiée automatiquement à chaque arrivée sur `recette`, si les tests passent (`.github/workflows/tests.yml`, D-020 et D-021). Après la mise à jour mensuelle des ventes DVF sur `main` (D-014), récupérer `main` dans `recette` avant de partir de `recette`.
+Cloudflare construit la Recette (`npm run build:recette`) et la publie à chaque arrivée sur `recette` (D-020) ; il donne aussi un lien d'essai à chaque branche poussée. Il publie tout ce qui arrive : on ne fusionne dans `recette` qu'avec les tests au vert (`.github/workflows/tests.yml`, D-021). Après la mise à jour mensuelle des ventes DVF sur `main` (D-014), récupérer `main` dans `recette` avant de partir de `recette`.
 
 Deux fils qui touchent au code en même temps, pas plus (D-008).
 
@@ -62,7 +62,7 @@ Chrome sans écran (puppeteer-core) au format iPhone ; chemin de Chrome dans `te
 - **La mise à jour doit toujours pouvoir arriver** : l'enregistrement du service worker se fait avant l'écran du code (`src/main.js`), et la fenêtre « Mise à jour disponible » attend la fin d'une saisie.
 - **Pas de porte dérobée** dans le chiffrement (D-015). Le code n'est jamais enregistré.
 - Rien de personnel en clair hors des données chiffrées (seule exception : la couleur de l'appli, D-019).
-- **Prod et Recette partagent l'origine `sosgrec.github.io`** (D-020) : tout ce qui est gardé dans le navigateur (IndexedDB, `localStorage`, `sessionStorage`, caches) porte le préfixe `prospection` en prod, `prospection-recette` dans la Recette. Un **nouveau nom de stockage** dans `src/` ou `public/index.html` doit être ajouté aux réécritures de `scripts/build.mjs` (`NOMS_STOCKAGE`, `remplacer`), et `tests/recette.mjs` doit le voir passer (il refuse toute clé de la Recette sans le préfixe `prospection-recette-`). Le ménage des caches du service worker ne vise que son propre préfixe. Une réécriture qui ne trouve plus son texte arrête la construction de la Recette : c'est voulu.
+- **Prod et Recette ont chacune leurs noms de stockage** (D-020), même si Cloudflare leur donne des adresses séparées (seconde protection, et indispensable si elles se retrouvaient sur la même origine) : tout ce qui est gardé dans le navigateur (IndexedDB, `localStorage`, `sessionStorage`, caches) porte le préfixe `prospection` en prod, `prospection-recette` dans la Recette. Un **nouveau nom de stockage** dans `src/` ou `public/index.html` doit être ajouté aux réécritures de `scripts/build.mjs` (`NOMS_STOCKAGE`, `remplacer`), et `tests/recette.mjs` doit le voir passer (il refuse toute clé de la Recette sans le préfixe `prospection-recette-`). Le ménage des caches du service worker ne vise que son propre préfixe. Une réécriture qui ne trouve plus son texte arrête la construction de la Recette : c'est voulu.
 
 ### Pièges iOS déjà rencontrés
 

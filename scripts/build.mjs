@@ -1,13 +1,13 @@
 // Construit le site statique : code assemblé, données, icônes, service worker.
 // node scripts/build.mjs          : la prod, dans dist/, recopiée dans docs/ (publié par GitHub Pages)
-// node scripts/build.mjs recette  : la Recette, dans dist-recette/ (publiée par le dépôt prospection-recette, D-020)
+// node scripts/build.mjs recette  : la Recette, dans dist-recette/ (construite et publiée par Cloudflare Pages, D-020)
 import * as esbuild from 'esbuild';
 import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { createHash } from 'node:crypto';
 
-// Prod et Recette sont servies par la même origine (sosgrec.github.io) : elles partagent donc IndexedDB,
-// localStorage, sessionStorage et la liste des caches. Chaque nom de stockage porte un préfixe propre
+// Deux applis servies par la même origine partagent IndexedDB, localStorage, sessionStorage et la liste
+// des caches. La Recette a sa propre adresse chez Cloudflare, mais on ne compte pas que sur elle. Chaque nom de stockage porte un préfixe propre
 // à la cible, pour que la Recette ne puisse jamais lire ni effacer les données de la prod.
 // Les valeurs de la prod sont celles d'avant la Recette : le site de la prod reste identique au bit près.
 const CIBLES = {

@@ -118,5 +118,5 @@ Ils ne changent rien dans l'appli de la prod, donc pas de numéro de version.
 
 | Outil | En place |
 | --- | --- |
-| La Recette : deuxième appli « Prospection Recette » (bandeau RECETTE, icône orange, données à part), publiée à chaque arrivée sur `recette` ([D-020](decisions.md)) | 19/11/2026 |
+| La Recette : deuxième appli « Prospection Recette » (bandeau RECETTE, icône orange, données à part), publiée par Cloudflare à chaque arrivée sur `recette`, avec un lien d'essai par demande de fusion ([D-020](decisions.md)) | 19/11/2026 |
 | Les tests automatiques à chaque demande de fusion ([D-021](decisions.md)) | 19/11/2026 |

@@ -66,31 +66,33 @@ Sans gravité : l'appli garde les ventes déjà publiées. Dans l'onglet Actions
 
 ## La Recette
 
-Elle est construite depuis la branche `recette` et publiée par le dépôt `sosgrec/prospection-recette` ([D-020](decisions.md)). Elle ne touche jamais aux données de la prod : une Recette en panne ne gêne pas la tournée.
+Elle est construite et publiée par Cloudflare Pages depuis la branche `recette` de `sosgrec/prospection`, sur https://prospection-recette.pages.dev ([D-020](decisions.md)). Elle ne touche jamais aux données de la prod : une Recette en panne ne gêne pas la tournée.
 
 ### Comment elle est publiée
 
-1. Une demande de fusion arrive dans `recette`.
-2. Dans le dépôt `prospection`, onglet **Actions**, la tâche « Tests et Recette » lance les tests, puis pousse le site construit dans `prospection-recette` (branche `main`).
-3. GitHub Pages de `prospection-recette` republie en une à deux minutes. Sur l'iPhone, « Prospection Recette » propose la mise à jour.
+1. Une demande de fusion, tests au vert, arrive dans `recette`.
+2. Cloudflare le voit, lance `npm run build:recette` et publie `dist-recette/` en une à trois minutes. Sur l'iPhone, « Prospection Recette » propose la mise à jour.
+3. Chaque autre branche poussée reçoit un lien d'essai (Cloudflare l'écrit dans la demande de fusion). C'est une adresse à part : ses données sont séparées de la Recette et de la prod.
 
-Pour republier sans changement (après avoir réparé le jeton, par exemple) : onglet **Actions**, « Tests et Recette », **Run workflow**, branche `recette`.
+### Réglages du projet Cloudflare
+
+À retrouver dans Cloudflare, **Workers & Pages**, projet `prospection-recette`, **Settings** :
+
+| Réglage | Valeur |
+| --- | --- |
+| Dépôt | `sosgrec/prospection` |
+| Branche de production | `recette` |
+| Préréglage (framework) | Aucun |
+| Commande de construction | `npm run build:recette` |
+| Dossier publié | `dist-recette` |
+| Version de Node | lue dans `.node-version` (22) |
 
 ### La publication échoue
 
-- **« Le secret RECETTE_JETON manque »** ou une erreur 403 / « Authentication failed » au moment de pousser : le jeton a expiré ou a été supprimé. Le recréer (ci-dessous), puis relancer la tâche.
-- **Un test échoue** : la Recette reste sur la version d'avant, c'est voulu. Le fil qui a fusionné corrige.
-
-### Recréer le jeton `RECETTE_JETON`
-
-C'est un jeton GitHub qui ne peut écrire que dans `prospection-recette`. Il expire (un an au plus) : GitHub prévient par email quelques jours avant.
-
-1. GitHub, photo de profil, **Settings**, **Developer settings**, **Personal access tokens**, **Fine-grained tokens**, **Generate new token**.
-2. Nom : `Publication Recette`. Expiration : 1 an. **Repository access** : *Only select repositories*, choisir `sosgrec/prospection-recette` et rien d'autre.
-3. **Permissions**, *Repository permissions* : **Contents** sur *Read and write*. Rien d'autre.
-4. **Generate token**, copier le jeton (il ne s'affiche qu'une fois). Ne le coller nulle part ailleurs qu'à l'étape suivante.
-5. Dépôt `sosgrec/prospection`, **Settings**, **Secrets and variables**, **Actions**, secret `RECETTE_JETON` : **Update** (ou **New repository secret** la première fois), coller, enregistrer.
+Cloudflare, projet `prospection-recette`, **Deployments** : ouvrir le déploiement en échec et lire le journal. Une construction qui s'arrête sur « Construction de la Recette : … introuvable » veut dire qu'un nom de stockage a changé dans `src/` ou `public/` sans que `scripts/build.mjs` suive : c'est un fil Bug. Pour republier sans changement : **Retry deployment**. La Recette en ligne reste sur la version d'avant tant qu'une nouvelle n'a pas réussi.
 
 ### Repartir de zéro
 
-Si le dépôt `prospection-recette` est perdu : le recréer (public, vide), régler GitHub Pages (**Settings**, **Pages**, *Deploy from a branch*, `main`, dossier `/ (root)`), recréer le jeton, relancer la tâche. Les données de test de l'iPhone ne sont pas touchées tant que l'adresse ne change pas.
+Si le projet Cloudflare est perdu : en recréer un (Workers & Pages, Create, Pages, connecter le dépôt) avec les réglages ci-dessus, sous le même nom pour garder l'adresse. Si l'adresse change, « Prospection Recette » est une nouvelle appli pour l'iPhone : supprimer l'ancienne icône et réinstaller (seules des données de test sont perdues).
+
+Pour revenir à GitHub Pages, voir D-001 : il faudrait un second dépôt et un jeton. Les noms de stockage à part rendent ce retour sans danger pour la prod.

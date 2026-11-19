@@ -28,7 +28,7 @@ node tests/recette.mjs
 
 Il faut Chrome en `/usr/bin/google-chrome` (chemin écrit dans `tests/harness.mjs`), et LibreOffice (`soffice`) pour `officecrypto.mjs`. Sans `msoffcrypto-tool`, `flow2.mjs` et `sauvegarde.mjs` échouent sur `ModuleNotFoundError` : ce n'est pas un bug de l'appli.
 
-Ils tournent aussi chez GitHub à chaque demande de fusion et à chaque arrivée sur `recette` (`.github/workflows/tests.yml`, [D-021](decisions.md)) : résultat dans l'onglet « Checks » de la demande de fusion, captures jointes en cas d'échec. La Recette n'est publiée que si tout passe.
+Ils tournent aussi chez GitHub à chaque demande de fusion et à chaque arrivée sur `recette` (`.github/workflows/tests.yml`, [D-021](decisions.md)) : résultat dans l'onglet « Checks » de la demande de fusion, captures jointes en cas d'échec. On ne fusionne dans `recette` qu'avec tout au vert : Cloudflare publie la Recette dès qu'un changement y arrive.
 
 ### Ce que couvre chaque série
 

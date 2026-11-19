@@ -1,8 +1,7 @@
-# Tests automatiques à chaque demande de fusion (D-021), et publication de la Recette (D-020).
-# - Demande de fusion (vers recette ou main) : toutes les séries de tests, résultat dans l'onglet « Checks ».
-# - Arrivée sur la branche recette : les tests, puis, s'ils passent, la Recette est construite et poussée
-#   dans le dépôt sosgrec/prospection-recette, que GitHub Pages publie sur https://sosgrec.github.io/prospection-recette
-name: Tests et Recette
+# Tests automatiques à chaque demande de fusion (D-021) et à chaque arrivée sur recette.
+# Résultat dans l'onglet « Checks » de la demande de fusion. La Recette, elle, est construite et publiée
+# par Cloudflare depuis la branche recette (D-020) : on n'y fusionne qu'avec des tests au vert.
+name: Tests
 
 on:
   pull_request:
@@ -59,49 +58,3 @@ jobs:
           name: captures
           path: tests/shots/
           retention-days: 7
-
-  publier-recette:
-    needs: tests
-    if: github.ref == 'refs/heads/recette' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: publier-recette
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci --no-audit --no-fund
-
-      - name: Construire la Recette
-        run: npm run build:recette
-
-      - name: Pousser dans sosgrec/prospection-recette
-        env:
-          # Jeton à droits limités au seul dépôt prospection-recette (voir suivi/reprise.md)
-          JETON: ${{ secrets.RECETTE_JETON }}
-        run: |
-          if [ -z "$JETON" ]; then
-            echo "::error::Le secret RECETTE_JETON manque dans les réglages du dépôt (voir suivi/reprise.md, section Recette)."
-            exit 1
-          fi
-          git clone --depth 1 "https://x-access-token:${JETON}@github.com/sosgrec/prospection-recette.git" cible
-          cd cible
-          git checkout -B main
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -r ../dist-recette/. .
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "La Recette publiée est déjà à jour."
-            exit 0
-          fi
-          git commit -q -m "Recette construite depuis sosgrec/prospection@${GITHUB_SHA::7}"
-          git push origin main
-          echo "Recette publiée : https://sosgrec.github.io/prospection-recette (une à deux minutes)" >> "$GITHUB_STEP_SUMMARY"

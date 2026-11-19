@@ -52,7 +52,7 @@ Couleur de l'appli au choix (Tableau, Paramètres, Apparence) : bleu, rouge, bor
 
 ## La Recette
 
-Une deuxième appli, « Prospection Recette » (https://sosgrec.github.io/prospection-recette), sert à vérifier chaque changement avant la prod : bandeau RECETTE, icône orange, données à part. Elle est construite depuis la branche `recette` et publiée par le dépôt `sosgrec/prospection-recette` (voir [`suivi/reprise.md`](suivi/reprise.md)). Elle s'installe comme la prod, depuis Safari.
+Une deuxième appli, « Prospection Recette » (https://prospection-recette.pages.dev), sert à vérifier chaque changement avant la prod : bandeau RECETTE, icône orange, données à part. Cloudflare Pages la construit depuis la branche `recette` (`npm run build:recette`, voir [`suivi/reprise.md`](suivi/reprise.md)). Elle s'installe comme la prod, depuis Safari.
 
 ## Mise à jour automatique des ventes DVF
 

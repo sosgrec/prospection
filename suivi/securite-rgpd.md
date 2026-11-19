@@ -67,4 +67,5 @@ Chacun deviendra un fil « Sécu · … » quand Jonathan le demandera.
 2. **Sécurité côté GitHub** : double authentification sur le compte, branche `main` protégée pour que rien n'y arrive sans passer par la Recette, alertes de sécurité sur les composants (Dependabot).
 3. **Test de restauration régulier** : restaurer pour de vrai une sauvegarde de la prod dans une appli vierge, par exemple chaque mois, et noter le résultat ici.
 4. **Purge des 3 ans** : aujourd'hui proposée, pas automatique ; décider s'il faut un rappel.
-5. ~~**Recette et prod sur la même origine**~~ : réglé le 19/11/2026 ([D-020](decisions.md)), la Recette a ses propres noms de stockage. Voir Contrôles faits.
+5. ~~**Recette et prod sur la même origine**~~ : réglé le 19/11/2026 ([D-020](decisions.md)) : la Recette est chez Cloudflare, à sa propre adresse, et garde en plus ses propres noms de stockage. Voir Contrôles faits.
+6. **Compte Cloudflare** : double authentification à activer, comme pour GitHub (fil Sécu).

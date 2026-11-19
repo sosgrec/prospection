@@ -12,6 +12,8 @@ La prod reste sur GitHub Pages (https://sosgrec.github.io/prospection, branche `
 
 **Pourquoi** : gratuit, déjà en place, rien de nouveau à apprendre. Un second dépôt donne à la Recette sa propre adresse.
 
+**Remplacée pour la Recette par D-020** (19/11/2026) : la Recette est publiée par Cloudflare. La prod reste sur GitHub Pages.
+
 ### D-002 · 19/11/2026 · Les modifications et ajouts s'appellent « Évolutions »
 
 Les fils s'appellent « Évo · … ». On ne sépare pas modifications et ajouts : même circuit, même écran touché, frontière floue ; la différence se lit dans le numéro de version.
@@ -35,6 +37,8 @@ Tout est déposé dans le fil général, qui oriente : Évo, Bug, Sécu, Apprend
 Pas de Cloudflare. On le garde en tête pour des liens d'essai (un lien par modification) et des adresses tout à fait séparées entre prod et Recette. En attendant, on renforce la sécurité côté GitHub (fil Sécu).
 
 **Pourquoi** : la Recette sur GitHub Pages suffit pour démarrer, sans nouveau compte ni nouvel outil. Voir aussi l'idée correspondante dans la liste des idées.
+
+**Remplacée par D-020** (19/11/2026) : Jonathan choisit finalement Cloudflare pour la Recette, plus simple à mettre en place (ni second dépôt, ni jeton) et avec un lien d'essai par demande de fusion.
 
 ### D-006 · 19/11/2026 · Le circuit : recette, puis main seulement sur « En prod »
 
@@ -129,16 +133,20 @@ Le thème choisi est gardé en clair (`localStorage`, clé `prospection-theme`).
 
 **Pourquoi** : il colore l'écran du code, affiché avant que les données soient déchiffrées. Une couleur ne dit rien de personne.
 
-### D-020 · 19/11/2026 · La Recette : le même code, ses propres noms de stockage
+### D-020 · 19/11/2026 · La Recette : le même code, chez Cloudflare
+
+Remplace D-005 et, pour la Recette, D-001.
 
 La branche `recette` porte le même code que `main`. `npm run build:recette` en fait une appli à part, dans `dist-recette/` : nom « Prospection Recette », icône orange (`public-recette/`, dessinée par `scripts/make-icons.mjs recette`), bandeau RECETTE en haut de l'écran, et le préfixe `prospection-recette` sur tout ce qu'elle garde dans le navigateur : base IndexedDB, clés `localStorage` et `sessionStorage`, caches du service worker. Ces noms sont réécrits au moment de la construction (`scripts/build.mjs`) ; `src/` garde ceux de la prod.
 
-À chaque arrivée sur `recette`, GitHub Actions lance les tests puis, s'ils passent, pousse le site construit dans le dépôt `sosgrec/prospection-recette`, que GitHub Pages publie sur https://sosgrec.github.io/prospection-recette. Le dépôt `prospection` n'a le droit d'écrire que dans ce dépôt-là, avec le jeton `RECETTE_JETON` (secret du dépôt, limité à `prospection-recette`, voir [reprise.md](reprise.md)).
+Cloudflare Pages est relié au dépôt `sosgrec/prospection` : à chaque arrivée sur `recette`, il lance `npm run build:recette` et publie `dist-recette/` sur https://prospection-recette.pages.dev. Chaque autre branche poussée reçoit son propre lien d'essai (un lien par demande de fusion). La prod reste sur GitHub Pages, sans changement (D-012).
 
-**Pourquoi** : prod et Recette sont servies par la même origine, `sosgrec.github.io`, et un navigateur range les données par origine, pas par dossier. Avec les mêmes noms, la Recette lirait la base de la prod, et un « Code oublié » dans la Recette effacerait la prod. Sur l'iPhone, chaque appli installée a déjà son propre espace, mais Safari partage tout : on ne compte pas sur ce comportement d'iOS. Réécrire les noms à la construction plutôt que dans `src/` laisse le site de la prod identique, octet pour octet : la mise en place de la Recette ne demande aucune mise à jour sur l'iPhone. `tests/recette.mjs` sert les deux sites sous la même origine et vérifie que la base de la prod ne bouge pas, même après un effacement complet dans la Recette.
+**Pourquoi** : Cloudflare construit lui-même la Recette depuis le dépôt : ni second dépôt, ni jeton à renouveler, et un lien d'essai par modification. La Recette a ainsi sa propre adresse : le navigateur sépare ses données de celles de la prod. Les noms de stockage à part restent quand même : une seconde protection qui ne coûte rien, et qui tiendrait si la Recette revenait un jour sur `sosgrec.github.io`. Les réécrire à la construction plutôt que dans `src/` laisse le site de la prod identique, octet pour octet : la mise en place de la Recette ne demande aucune mise à jour sur l'iPhone. `tests/recette.mjs` sert les deux sites sous la même origine (le cas le plus défavorable) et vérifie que la base de la prod ne bouge pas, même après un effacement complet dans la Recette.
+
+**Côté sécurité** : l'appli n'a pas de serveur, les données restent sur l'iPhone, chiffrées. L'hébergeur ne fait que distribuer les fichiers ; le risque est qu'on modifie le code publié, et il passe par le compte GitHub dans les deux cas (fil Sécu). Le compte Cloudflare est un compte de plus à protéger (double authentification).
 
 ### D-021 · 19/11/2026 · Les tests tournent à chaque demande de fusion
 
-GitHub Actions (`.github/workflows/tests.yml`) construit la prod et la Recette et lance toutes les séries de tests à chaque demande de fusion, et à chaque arrivée sur `recette`. Le résultat s'affiche dans la demande de fusion (onglet « Checks ») ; en cas d'échec, les captures d'écran sont jointes. La Recette n'est publiée que si les tests passent.
+GitHub Actions (`.github/workflows/tests.yml`) construit la prod et la Recette et lance toutes les séries de tests à chaque demande de fusion, et à chaque arrivée sur `recette`. Le résultat s'affiche dans la demande de fusion (onglet « Checks ») ; en cas d'échec, les captures d'écran sont jointes. On ne fusionne dans `recette` qu'avec des tests au vert : Cloudflare publie tout ce qui y arrive.
 
-**Pourquoi** : les tests se lançaient à la main, dans la session d'un fil. Les faire tourner chez GitHub donne un résultat que Jonathan peut voir lui-même, et empêche une version cassée d'arriver dans la Recette.
+**Pourquoi** : les tests se lançaient à la main, dans la session d'un fil. Les faire tourner chez GitHub donne un résultat que Jonathan peut voir lui-même, et évite qu'une version cassée arrive dans la Recette.

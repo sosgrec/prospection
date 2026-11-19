@@ -1,7 +1,7 @@
 // La Recette ne touche jamais aux données de la prod (D-020).
-// Sur GitHub Pages, prod (/prospection/) et Recette (/prospection-recette/) ont la même origine,
-// sosgrec.github.io : elles partagent IndexedDB, localStorage, sessionStorage et les caches.
-// Ce test sert les deux sites construits sous la même origine, comme GitHub Pages, et vérifie
+// La Recette a sa propre adresse chez Cloudflare, donc ses propres données. Ce test prend le cas le plus
+// défavorable : les deux sites servis sous la même origine (ce serait le cas sur GitHub Pages, /prospection/
+// et /prospection-recette/), qui partagent alors IndexedDB, localStorage, sessionStorage et les caches. Il vérifie
 // que la Recette a ses propres noms partout, même quand on y efface tout.
 // Avant : npm run build && npm run build:recette
 import { start, unlock, tapText, sleep, URL0, PIN } from './harness.mjs';
