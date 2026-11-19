@@ -19,10 +19,15 @@ try {
   await page.waitForSelector('#lock:not([hidden]) .lock-pad');
   await sleep(300);
   await shot('01-code');
-  check((await page.$eval('#lock', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(29, 78, 216)', 'écran du code aux couleurs du thème (bleu par défaut)');
+  // iOS 26+ colore la bande de l'heure avec la couleur de fond déclarée (background-color) de l'élément fixé en haut :
+  // elle doit rester neutre, l'apparence (couleur du thème) étant peinte par-dessus.
+  const lockBg = await page.$eval('#lock', (e) => [getComputedStyle(e).backgroundColor, getComputedStyle(e).backgroundImage]);
+  check(lockBg[0] === 'rgb(29, 32, 36)' && /29, 78, 216/.test(lockBg[1]), 'écran du code : couleur du thème à l’écran, teinte neutre pour la bande de l’heure');
   await unlock(page);
   await sleep(1500);
   await shot('02-carte');
+  const bands = await page.evaluate(() => [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.getElementById('app')).backgroundColor]);
+  check(bands.every((c) => c === 'rgb(29, 32, 36)'), 'sur la carte, bande de l’heure en gris foncé (fond déclaré du body et de l’appli)');
   const mapR = await rect('#map');
   check(mapR.top === 0 && mapR.bottom === 844, 'carte sur toute la hauteur de l’écran');
   check((await rect('.map-search')).top === TOP + 10, 'recherche placée sous l’heure et la batterie');
@@ -56,6 +61,7 @@ try {
   await page.evaluate(() => __app.nav.goTab('contacts'));
   await sleep(500);
   await shot('03-contacts');
+  check((await page.$eval('#app', (e) => getComputedStyle(e).backgroundColor)) === 'rgb(29, 78, 216)', 'hors carte, bande de l’heure de la couleur de la barre du haut');
   const h1 = await rect('#tab-contacts .tab-head h1');
   check(Math.abs(h1.left + h1.width / 2 - 195) < 1.5, 'titre centré dans la barre du haut');
   check((await rect('#tab-contacts .tab-head')).height === TOP + 56, 'barre du haut colorée jusque sous l’heure');
@@ -104,8 +110,8 @@ try {
   await shot('09-code-bordeaux');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await sleep(250);
-  const th2 = await page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.getElementById('boot')).backgroundColor]);
-  check(th2[0] === 'bordeaux' && th2[1] === 'rgb(123, 30, 51)', 'au redémarrage, le thème s’affiche dès l’écran de chargement');
+  const th2 = await page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.getElementById('boot')).backgroundImage]);
+  check(th2[0] === 'bordeaux' && /123, 30, 51/.test(th2[1]), 'au redémarrage, le thème s’affiche dès l’écran de chargement');
   await unlock(page);
   const sh = await rect('#tabbar');
   check(sh.bottom === 844 - 24, 'barre toujours en place après redémarrage');

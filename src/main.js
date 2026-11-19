@@ -40,6 +40,7 @@ function goTab(name) {
   for (const b of $$('#tabbar button')) b.classList.toggle('on', b.dataset.tab === name);
   const sec = $(`#tab-${name}`);
   setStatusBar(name !== 'carte');
+  $('#app').dataset.tab = name;
   sec.dispatchEvent(new Event('tab:show'));
   if (name === 'carte') mapResized();
 }
