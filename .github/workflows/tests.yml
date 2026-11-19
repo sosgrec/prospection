@@ -33,7 +33,21 @@ jobs:
           npm ci --no-audit --no-fund
           pip install msoffcrypto-tool olefile
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends libreoffice-calc-nogui > /dev/null
+          # LibreOffice et son lien Python (uno) pour officecrypto.mjs et sauvegarde.mjs ;
+          # police Inter, proche de celle de l'iPhone : les tests de mise en page mesurent des largeurs de texte.
+          sudo apt-get install -y -qq --no-install-recommends libreoffice-calc-nogui python3-uno fonts-inter > /dev/null
+          mkdir -p ~/.config/fontconfig
+          cat > ~/.config/fontconfig/fonts.conf <<'XML'
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <alias binding="strong"><family>sans-serif</family><prefer><family>Inter</family></prefer></alias>
+            <alias binding="strong"><family>system-ui</family><prefer><family>Inter</family></prefer></alias>
+          </fontconfig>
+          XML
+          fc-cache -f > /dev/null
+          echo "Police par défaut : $(fc-match sans-serif)"
+          echo "Python : $(command -v python3)" && python3 -c "import uno, msoffcrypto, olefile"
 
       - name: Construire la prod et la Recette
         run: |

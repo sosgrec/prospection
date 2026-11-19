@@ -26,7 +26,7 @@ node tests/dvf.mjs
 node tests/recette.mjs
 ```
 
-Il faut Chrome en `/usr/bin/google-chrome` (chemin écrit dans `tests/harness.mjs`), et LibreOffice (`soffice`) pour `officecrypto.mjs`. Sans `msoffcrypto-tool`, `flow2.mjs` et `sauvegarde.mjs` échouent sur `ModuleNotFoundError` : ce n'est pas un bug de l'appli.
+Il faut Chrome en `/usr/bin/google-chrome` (chemin écrit dans `tests/harness.mjs`), et LibreOffice (`soffice`, avec son lien Python `uno`) pour `officecrypto.mjs` et `sauvegarde.mjs`. Les tests de mise en page mesurent des largeurs de texte : ils supposent la police **Inter** comme police par défaut (proche de celle de l'iPhone). Avec une police plus large (DejaVu, par défaut sur Ubuntu), « titre de fiche centré » échoue ; `.github/workflows/tests.yml` installe Inter pour cette raison. Sans `msoffcrypto-tool`, `flow2.mjs` et `sauvegarde.mjs` échouent sur `ModuleNotFoundError` : ce n'est pas un bug de l'appli.
 
 Ils tournent aussi chez GitHub à chaque demande de fusion et à chaque arrivée sur `recette` (`.github/workflows/tests.yml`, [D-021](decisions.md)) : résultat dans l'onglet « Checks » de la demande de fusion, captures jointes en cas d'échec. On ne fusionne dans `recette` qu'avec tout au vert : Cloudflare publie la Recette dès qu'un changement y arrive.
 
