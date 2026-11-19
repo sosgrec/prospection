@@ -1,6 +1,6 @@
 # Procédure de reprise
 
-Que faire quand ça va mal. À relire à chaque changement d'hébergement, et à mettre à jour quand la Recette sera en place.
+Que faire quand ça va mal. À relire à chaque changement d'hébergement.
 
 ## Ce qu'il faut avoir en lieu sûr
 
@@ -63,3 +63,34 @@ L'appli est un site statique : n'importe quel hébergeur en HTTPS peut le servir
 ## La mise à jour mensuelle des ventes DVF échoue
 
 Sans gravité : l'appli garde les ventes déjà publiées. Dans l'onglet Actions du dépôt, ouvrir « Mise à jour des ventes DVF », lire l'erreur, et relancer avec « Run workflow ». Si data.gouv.fr a changé l'adresse de ses fichiers, c'est un fil Bug sur `scripts/update-dvf.mjs`.
+
+## La Recette
+
+Elle est construite depuis la branche `recette` et publiée par le dépôt `sosgrec/prospection-recette` ([D-020](decisions.md)). Elle ne touche jamais aux données de la prod : une Recette en panne ne gêne pas la tournée.
+
+### Comment elle est publiée
+
+1. Une demande de fusion arrive dans `recette`.
+2. Dans le dépôt `prospection`, onglet **Actions**, la tâche « Tests et Recette » lance les tests, puis pousse le site construit dans `prospection-recette` (branche `main`).
+3. GitHub Pages de `prospection-recette` republie en une à deux minutes. Sur l'iPhone, « Prospection Recette » propose la mise à jour.
+
+Pour republier sans changement (après avoir réparé le jeton, par exemple) : onglet **Actions**, « Tests et Recette », **Run workflow**, branche `recette`.
+
+### La publication échoue
+
+- **« Le secret RECETTE_JETON manque »** ou une erreur 403 / « Authentication failed » au moment de pousser : le jeton a expiré ou a été supprimé. Le recréer (ci-dessous), puis relancer la tâche.
+- **Un test échoue** : la Recette reste sur la version d'avant, c'est voulu. Le fil qui a fusionné corrige.
+
+### Recréer le jeton `RECETTE_JETON`
+
+C'est un jeton GitHub qui ne peut écrire que dans `prospection-recette`. Il expire (un an au plus) : GitHub prévient par email quelques jours avant.
+
+1. GitHub, photo de profil, **Settings**, **Developer settings**, **Personal access tokens**, **Fine-grained tokens**, **Generate new token**.
+2. Nom : `Publication Recette`. Expiration : 1 an. **Repository access** : *Only select repositories*, choisir `sosgrec/prospection-recette` et rien d'autre.
+3. **Permissions**, *Repository permissions* : **Contents** sur *Read and write*. Rien d'autre.
+4. **Generate token**, copier le jeton (il ne s'affiche qu'une fois). Ne le coller nulle part ailleurs qu'à l'étape suivante.
+5. Dépôt `sosgrec/prospection`, **Settings**, **Secrets and variables**, **Actions**, secret `RECETTE_JETON` : **Update** (ou **New repository secret** la première fois), coller, enregistrer.
+
+### Repartir de zéro
+
+Si le dépôt `prospection-recette` est perdu : le recréer (public, vide), régler GitHub Pages (**Settings**, **Pages**, *Deploy from a branch*, `main`, dossier `/ (root)`), recréer le jeton, relancer la tâche. Les données de test de l'iPhone ne sont pas touchées tant que l'adresse ne change pas.

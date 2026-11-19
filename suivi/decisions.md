@@ -97,7 +97,7 @@ La sauvegarde est un fichier .xlsx exporté par Jonathan et rangé dans son Driv
 
 `.github/workflows/maj-dvf.yml` tourne le 3 de chaque mois, découpe les ventes selon les îlots et, si elles ont changé, reconstruit l'appli et pousse directement sur `main`.
 
-**Pourquoi** : des prix à jour sans y penser. **À reprendre avec la Recette** : ce commit automatique arrive sur `main` sans passer par `recette` ; il ne touche que des données publiques, mais `recette` doit ensuite récupérer `main` pour ne pas prendre de retard.
+**Pourquoi** : des prix à jour sans y penser. **Avec la Recette** (en place le 19/11/2026) : ce commit automatique arrive sur `main` sans passer par `recette` ; il ne touche que des données publiques, mais `recette` doit ensuite récupérer `main` pour ne pas prendre de retard (le premier fil qui part de `recette` après le 3 du mois le fait).
 
 ### D-015 · 14/11/2026 · Chiffrement des données avec le code à 6 chiffres
 
@@ -128,3 +128,17 @@ Dès qu'une version est en ligne, une fenêtre au centre de l'écran impose la m
 Le thème choisi est gardé en clair (`localStorage`, clé `prospection-theme`).
 
 **Pourquoi** : il colore l'écran du code, affiché avant que les données soient déchiffrées. Une couleur ne dit rien de personne.
+
+### D-020 · 19/11/2026 · La Recette : le même code, ses propres noms de stockage
+
+La branche `recette` porte le même code que `main`. `npm run build:recette` en fait une appli à part, dans `dist-recette/` : nom « Prospection Recette », icône orange (`public-recette/`, dessinée par `scripts/make-icons.mjs recette`), bandeau RECETTE en haut de l'écran, et le préfixe `prospection-recette` sur tout ce qu'elle garde dans le navigateur : base IndexedDB, clés `localStorage` et `sessionStorage`, caches du service worker. Ces noms sont réécrits au moment de la construction (`scripts/build.mjs`) ; `src/` garde ceux de la prod.
+
+À chaque arrivée sur `recette`, GitHub Actions lance les tests puis, s'ils passent, pousse le site construit dans le dépôt `sosgrec/prospection-recette`, que GitHub Pages publie sur https://sosgrec.github.io/prospection-recette. Le dépôt `prospection` n'a le droit d'écrire que dans ce dépôt-là, avec le jeton `RECETTE_JETON` (secret du dépôt, limité à `prospection-recette`, voir [reprise.md](reprise.md)).
+
+**Pourquoi** : prod et Recette sont servies par la même origine, `sosgrec.github.io`, et un navigateur range les données par origine, pas par dossier. Avec les mêmes noms, la Recette lirait la base de la prod, et un « Code oublié » dans la Recette effacerait la prod. Sur l'iPhone, chaque appli installée a déjà son propre espace, mais Safari partage tout : on ne compte pas sur ce comportement d'iOS. Réécrire les noms à la construction plutôt que dans `src/` laisse le site de la prod identique, octet pour octet : la mise en place de la Recette ne demande aucune mise à jour sur l'iPhone. `tests/recette.mjs` sert les deux sites sous la même origine et vérifie que la base de la prod ne bouge pas, même après un effacement complet dans la Recette.
+
+### D-021 · 19/11/2026 · Les tests tournent à chaque demande de fusion
+
+GitHub Actions (`.github/workflows/tests.yml`) construit la prod et la Recette et lance toutes les séries de tests à chaque demande de fusion, et à chaque arrivée sur `recette`. Le résultat s'affiche dans la demande de fusion (onglet « Checks ») ; en cas d'échec, les captures d'écran sont jointes. La Recette n'est publiée que si les tests passent.
+
+**Pourquoi** : les tests se lançaient à la main, dans la session d'un fil. Les faire tourner chez GitHub donne un résultat que Jonathan peut voir lui-même, et empêche une version cassée d'arriver dans la Recette.

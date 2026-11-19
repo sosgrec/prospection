@@ -109,7 +109,14 @@ Un fil Évo met ce document à jour dans la même demande de fusion que le code 
 
 Ces lignes viennent de la passation. Chacune passera par son propre fil.
 
-- La Recette (deuxième appli « Prospection Recette », bandeau RECETTE, icône orange, données de test).
 - Le numéro de version x.y.z et la liste des versions dans l'appli.
-- Les tests automatiques à chaque demande de fusion.
 - Les boutons pour les droits des personnes (accès, effacement) : fil Sécu.
+
+## Outils autour de l'appli
+
+Ils ne changent rien dans l'appli de la prod, donc pas de numéro de version.
+
+| Outil | En place |
+| --- | --- |
+| La Recette : deuxième appli « Prospection Recette » (bandeau RECETTE, icône orange, données à part), publiée à chaque arrivée sur `recette` ([D-020](decisions.md)) | 19/11/2026 |
+| Les tests automatiques à chaque demande de fusion ([D-021](decisions.md)) | 19/11/2026 |

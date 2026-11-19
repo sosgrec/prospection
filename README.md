@@ -46,9 +46,13 @@ Couleur de l'appli au choix (Tableau, Paramètres, Apparence) : bleu, rouge, bor
   - `xlsx.js`, `backup.js` : export et restauration Excel écrits à la main (un .xlsx est un zip de fichiers XML).
   - `stats.js`, `pdf.js` : statistiques et bilan mensuel.
 - `scripts/build-data.mjs` : découpe le cadastre, les adresses et les ventes selon les 9 îlots.
-- `scripts/build.mjs` : assemble le site dans `docs/` avec le service worker (hors connexion).
+- `scripts/build.mjs` : assemble le site dans `docs/` avec le service worker (hors connexion). `npm run build:recette` assemble la Recette dans `dist-recette/`.
 - `data-src/ilots.kml` : contours des îlots exportés de Google My Maps (zones rouges).
 - `tests/` : tests automatisés dans Chrome au format iPhone. `tests/sauvegarde.mjs` remplit une appli, l'exporte puis la restaure dans une appli vierge (comme une réinstallation de l'icône) et compare tout, champ par champ. `tests/theme.mjs plein|bande` vérifie la mise en page avec ou sans la barre d'état d'iOS au-dessus de l'appli. `tests/officecrypto.mjs` vérifie le fichier protégé avec msoffcrypto-tool, olefile et LibreOffice (Python : `pip install msoffcrypto-tool`).
+
+## La Recette
+
+Une deuxième appli, « Prospection Recette » (https://sosgrec.github.io/prospection-recette), sert à vérifier chaque changement avant la prod : bandeau RECETTE, icône orange, données à part. Elle est construite depuis la branche `recette` et publiée par le dépôt `sosgrec/prospection-recette` (voir [`suivi/reprise.md`](suivi/reprise.md)). Elle s'installe comme la prod, depuis Safari.
 
 ## Mise à jour automatique des ventes DVF
 

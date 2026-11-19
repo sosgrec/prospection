@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:recette": "node scripts/build.mjs recette",
     "data": "node scripts/build-data.mjs",
     "dvf": "node scripts/update-dvf.mjs",
     "icons": "node scripts/make-icons.mjs"

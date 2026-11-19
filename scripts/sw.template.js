@@ -1,8 +1,8 @@
 // Service worker de Prospection : appli disponible hors connexion.
 const VERSION = '__VERSION__';
 const PRECACHE = __PRECACHE__;
-const APP_CACHE = `prospection-app-${VERSION}`;
-const TILE_CACHE = 'prospection-tuiles';
+const APP_CACHE = `__PREFIXE__-app-${VERSION}`;
+const TILE_CACHE = '__PREFIXE__-tuiles';
 const MAX_TILES = 2500;
 
 self.addEventListener('install', (event) => {
@@ -13,7 +13,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('prospection-app-') && k !== APP_CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('__PREFIXE__-app-') && k !== APP_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });

@@ -4,7 +4,7 @@ Deux étages : les **tests automatiques**, qui tournent avant chaque fusion, et 
 
 ## Tests automatiques
 
-Ils tournent dans Chrome sans écran (puppeteer-core), au format iPhone (390 × 844, fuseau Europe/Paris), sur le site construit dans `dist/`. Chaque vérification affiche `OK` ou `ÉCHEC` ; une seule `ÉCHEC` et la série s'arrête avec un code d'erreur.
+Ils tournent dans Chrome sans écran (puppeteer-core), au format iPhone (390 × 844, fuseau Europe/Paris), sur le site construit dans `dist/` (et `dist-recette/` pour `recette.mjs`). Chaque vérification affiche `OK` ou `ÉCHEC` ; une seule `ÉCHEC` et la série s'arrête avec un code d'erreur.
 
 ### Les lancer
 
@@ -12,6 +12,7 @@ Ils tournent dans Chrome sans écran (puppeteer-core), au format iPhone (390 × 
 npm ci
 pip install msoffcrypto-tool olefile   # pour les séries qui relisent la sauvegarde chiffrée
 npm run build
+npm run build:recette
 node tests/smoke.mjs
 node tests/flow.mjs
 node tests/flow2.mjs
@@ -22,11 +23,12 @@ node tests/theme.mjs plein
 node tests/theme.mjs bande
 node tests/officecrypto.mjs
 node tests/dvf.mjs
+node tests/recette.mjs
 ```
 
 Il faut Chrome en `/usr/bin/google-chrome` (chemin écrit dans `tests/harness.mjs`), et LibreOffice (`soffice`) pour `officecrypto.mjs`. Sans `msoffcrypto-tool`, `flow2.mjs` et `sauvegarde.mjs` échouent sur `ModuleNotFoundError` : ce n'est pas un bug de l'appli.
 
-Les tests se lancent encore à la main ; les faire tourner à chaque demande de fusion fait partie de la mise en place de la Recette.
+Ils tournent aussi chez GitHub à chaque demande de fusion et à chaque arrivée sur `recette` (`.github/workflows/tests.yml`, [D-021](decisions.md)) : résultat dans l'onglet « Checks » de la demande de fusion, captures jointes en cas d'échec. La Recette n'est publiée que si tout passe.
 
 ### Ce que couvre chaque série
 
@@ -40,6 +42,7 @@ Les tests se lancent encore à la main ; les faire tourner à chaque demande de 
 | `sauvegarde.mjs` | 14 | Appli remplie de tout, export, restauration dans une appli vierge avec un autre code, comparaison champ par champ |
 | `theme.mjs plein` / `bande` | 17 chacun | Thèmes, barre d'onglets flottante, titres centrés, carte plein écran, avec et sans la barre d'état d'iOS au-dessus de l'appli, hauteur iOS 26 |
 | `officecrypto.mjs` | 13 | Fichier protégé vérifié par msoffcrypto-tool, olefile et LibreOffice ; gros fichier ; mauvais mot de passe |
+| `recette.mjs` | 30 | La Recette ne touche jamais à la prod ([D-020](decisions.md)) : nom, icône et bandeau ; les deux sites sous la même origine ; code oublié et effacement dans la Recette, puis base, couleur, caches et code de la prod vérifiés intacts |
 | `dvf.mjs` | (message) | Bouton de mise à jour DVF quand data.gouv.fr est injoignable : la copie publiée est rechargée |
 | `views.mjs` | (captures) | Captures des vues secondaires, pour relecture visuelle |
 

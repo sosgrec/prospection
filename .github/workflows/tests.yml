@@ -1,0 +1,107 @@
+# Tests automatiques à chaque demande de fusion (D-021), et publication de la Recette (D-020).
+# - Demande de fusion (vers recette ou main) : toutes les séries de tests, résultat dans l'onglet « Checks ».
+# - Arrivée sur la branche recette : les tests, puis, s'ils passent, la Recette est construite et poussée
+#   dans le dépôt sosgrec/prospection-recette, que GitHub Pages publie sur https://sosgrec.github.io/prospection-recette
+name: Tests et Recette
+
+on:
+  pull_request:
+  push:
+    branches: [recette]
+  workflow_dispatch: # relance manuelle depuis l'onglet Actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: |
+          npm ci --no-audit --no-fund
+          pip install msoffcrypto-tool olefile
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libreoffice-calc-nogui > /dev/null
+
+      - name: Construire la prod et la Recette
+        run: |
+          npm run build
+          npm run build:recette
+
+      - name: Lancer les séries
+        run: |
+          echo "Chrome : $(/usr/bin/google-chrome --version)"
+          echec=0
+          for serie in smoke flow flow2 oldpassage rgpd sauvegarde "theme plein" "theme bande" officecrypto dvf recette; do
+            set -- $serie
+            echo "::group::$serie"
+            if node "tests/$1.mjs" ${2:-}; then echo "::endgroup::"; else echo "::endgroup::"; echo "::error::Série en échec : $serie"; echec=1; fi
+          done
+          exit $echec
+
+      - name: Garder les captures en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures
+          path: tests/shots/
+          retention-days: 7
+
+  publier-recette:
+    needs: tests
+    if: github.ref == 'refs/heads/recette' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: publier-recette
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Construire la Recette
+        run: npm run build:recette
+
+      - name: Pousser dans sosgrec/prospection-recette
+        env:
+          # Jeton à droits limités au seul dépôt prospection-recette (voir suivi/reprise.md)
+          JETON: ${{ secrets.RECETTE_JETON }}
+        run: |
+          if [ -z "$JETON" ]; then
+            echo "::error::Le secret RECETTE_JETON manque dans les réglages du dépôt (voir suivi/reprise.md, section Recette)."
+            exit 1
+          fi
+          git clone --depth 1 "https://x-access-token:${JETON}@github.com/sosgrec/prospection-recette.git" cible
+          cd cible
+          git checkout -B main
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -r ../dist-recette/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "La Recette publiée est déjà à jour."
+            exit 0
+          fi
+          git commit -q -m "Recette construite depuis sosgrec/prospection@${GITHUB_SHA::7}"
+          git push origin main
+          echo "Recette publiée : https://sosgrec.github.io/prospection-recette (une à deux minutes)" >> "$GITHUB_STEP_SUMMARY"
