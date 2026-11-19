@@ -7,7 +7,7 @@ Tenu à jour par les fils « Sécu · … ». Les choix de fond sont dans [decis
 | Rubrique | Contenu |
 | --- | --- |
 | Traitement | Prospection immobilière en porte-à-porte sur 9 îlots de Champigny-sur-Marne |
-| Responsable | **À compléter** : l'agence pour laquelle Jonathan prospecte (avec son directeur) |
+| Responsable | L'agence Century 21 de Champigny, pour laquelle Jonathan prospecte (avec son directeur) |
 | Utilisateur | Jonathan, seul, sur son iPhone |
 | Finalité | Organiser les passages, suivre les contacts et les relances, obtenir des mandats de vente |
 | Personnes concernées | Habitants et propriétaires rencontrés ou repérés dans les îlots |
@@ -66,5 +66,4 @@ Chacun deviendra un fil « Sécu · … » quand Jonathan le demandera.
 2. **Sécurité côté GitHub** : double authentification sur le compte, branche `main` protégée pour que rien n'y arrive sans passer par la Recette, alertes de sécurité sur les composants (Dependabot).
 3. **Test de restauration régulier** : restaurer pour de vrai une sauvegarde de la prod dans une appli vierge, par exemple chaque mois, et noter le résultat ici.
 4. **Purge des 3 ans** : aujourd'hui proposée, pas automatique ; décider s'il faut un rappel.
-5. **Responsable du traitement** : compléter la fiche du registre avec l'agence.
-6. **Recette et prod sur la même origine** (`sosgrec.github.io`) : la Recette doit utiliser son propre nom de base IndexedDB et ses propres clés de stockage, pour ne jamais lire ni écraser les données de la prod. À traiter dans le fil de mise en place de la Recette.
+5. **Recette et prod sur la même origine** (`sosgrec.github.io`) : la Recette doit utiliser son propre nom de base IndexedDB et ses propres clés de stockage, pour ne jamais lire ni écraser les données de la prod. À traiter dans le fil de mise en place de la Recette.
