@@ -57,6 +57,7 @@ Tenu à jour par les fils « Sécu · … ». Les choix de fond sont dans [decis
 | 19/11/2026 | `tests/sauvegarde.mjs` : export puis restauration dans une appli vierge | Tout retrouvé, champ par champ |
 | 19/11/2026 | Relecture du dépôt par le fil de mise en route (code, tests, données) | Aucune donnée réelle ni secret trouvé ; les numéros présents dans les tests sont fictifs |
 | 19/11/2026 | Toutes les séries de tests relancées | Toutes passent ([cahier-de-test.md](cahier-de-test.md)) |
+| 19/11/2026 | `tests/recette.mjs` : prod et Recette servies sous la même origine, « Code oublié » puis effacement dans la Recette | Base, couleur et caches de la prod inchangés ; la Recette n'utilise que des noms `prospection-recette-…` |
 
 ## Points ouverts
 
@@ -66,4 +67,5 @@ Chacun deviendra un fil « Sécu · … » quand Jonathan le demandera.
 2. **Sécurité côté GitHub** : double authentification sur le compte, branche `main` protégée pour que rien n'y arrive sans passer par la Recette, alertes de sécurité sur les composants (Dependabot).
 3. **Test de restauration régulier** : restaurer pour de vrai une sauvegarde de la prod dans une appli vierge, par exemple chaque mois, et noter le résultat ici.
 4. **Purge des 3 ans** : aujourd'hui proposée, pas automatique ; décider s'il faut un rappel.
-5. **Recette et prod sur la même origine** (`sosgrec.github.io`) : la Recette doit utiliser son propre nom de base IndexedDB et ses propres clés de stockage, pour ne jamais lire ni écraser les données de la prod. À traiter dans le fil de mise en place de la Recette.
+5. ~~**Recette et prod sur la même origine**~~ : réglé le 19/11/2026 ([D-020](decisions.md)) : la Recette est chez Cloudflare, à sa propre adresse, et garde en plus ses propres noms de stockage. Voir Contrôles faits.
+6. **Compte Cloudflare** : double authentification à activer, comme pour GitHub (fil Sécu).
