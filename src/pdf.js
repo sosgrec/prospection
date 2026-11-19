@@ -1,5 +1,6 @@
 // Bilan mensuel en PDF (généré sur l'iPhone, sans connexion).
 import { monthReport, suggestions, GOAL_DOORS, GOAL_MANDATS, DAYS, SLOTS } from './stats.js';
+import { currentTheme, hexToRgb } from './theme.js';
 import { S, contactName, contactMainAddress, addrLabel } from './state.js';
 import { fmtMonth, fmtDate, fmtNum, fmtPct, fmtDayShort, shareOrDownload, dayStr } from './util.js';
 
@@ -19,7 +20,8 @@ export async function monthlyPdf(monthStart) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const M = 14;
-  const blue = [29, 78, 216];
+  const blue = hexToRgb(currentTheme().accent);
+  const soft = hexToRgb(currentTheme().soft);
   const grey = [107, 114, 128];
   const text = (s, x, y, opt) => doc.text(clean(s), x, y, opt);
   let y = 18;
@@ -115,7 +117,7 @@ export async function monthlyPdf(monthStart) {
       body: body.length ? body.map((r) => r.map(clean)) : [[{ content: 'Aucune donnée sur la période', colSpan: head.length, styles: { textColor: grey, fontStyle: 'italic' } }]],
       margin: { left: M, right: M },
       styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 1.8, lineColor: [228, 231, 235], lineWidth: 0.1 },
-      headStyles: { fillColor: [232, 238, 252], textColor: [29, 78, 216], fontStyle: 'bold' },
+      headStyles: { fillColor: soft, textColor: blue, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [250, 251, 252] },
       ...opts,
     });

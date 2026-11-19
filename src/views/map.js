@@ -921,6 +921,7 @@ function refreshCounter() {
 export function initMap(root) {
   root.innerHTML = `
     <div id="map"></div>
+    <div class="map-scrim"></div>
     <div class="map-top">
       <button type="button" class="map-search">${icon('search', 20)} Rechercher</button>
       <button type="button" class="counter" title="Portes cette semaine"></button>

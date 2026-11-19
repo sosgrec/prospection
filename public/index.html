@@ -5,15 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Prospection" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#1d4ed8" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="icons/icon-192.png" />
     <title>Prospection</title>
     <link rel="stylesheet" href="app.css?v=__VERSION__" />
+    <script>
+      // Couleur du thème choisi, appliquée avant l'affichage (voir src/theme.js)
+      try {
+        var t = JSON.parse(localStorage.getItem('prospection-theme') || 'null');
+        if (t && t.vars) {
+          for (var k in t.vars) document.documentElement.style.setProperty(k, t.vars[k]);
+          document.documentElement.dataset.theme = t.id;
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', t.vars['--head']);
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="app">

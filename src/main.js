@@ -5,6 +5,7 @@ import { openDB, requestPersistence, unreadable } from './db.js';
 import * as state from './state.js';
 import { S, loadBase, loadUserData, onChange, getSetting } from './state.js';
 import * as lock from './lock.js';
+import { applyTheme, savedThemeId } from './theme.js';
 import { loadDvf } from './dvfUpdate.js';
 import { icon } from './icons.js';
 import { $, $$, html, toast, closeSheet, isDialogOpen, dialog } from './ui.js';
@@ -129,6 +130,9 @@ async function boot() {
     await base;
     await loadUserData();
     lock.setLockDelay(getSetting('lockDelay', 60));
+    // Thème : celui du téléphone, ou celui de la sauvegarde restaurée
+    const theme = getSetting('theme', null);
+    if (theme && theme !== savedThemeId()) applyTheme(theme);
     await loadDvf();
     msg.textContent = 'Préparation de la carte…';
     register({ goTab });

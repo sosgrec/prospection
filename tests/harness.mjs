@@ -8,7 +8,9 @@ export const URL0 = `http://localhost:${PORT}/`;
 export const SHOTS = 'tests/shots';
 mkdirSync(SHOTS, { recursive: true });
 
-export async function start({ dir = 'dist' } = {}) {
+// insets : marges de l'iPhone (Dynamic Island en haut, barre d'accueil en bas).
+// Par défaut, l'heure et la batterie sont au-dessus de l'appli (top 0), comme sur une appli déjà installée.
+export async function start({ dir = 'dist', insets = { top: 0, bottom: 34 } } = {}) {
   const srv = spawn('node', ['tests/serve.mjs', dir, String(PORT)], { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 400));
   const browser = await puppeteer.launch({
@@ -22,6 +24,8 @@ export async function start({ dir = 'dist' } = {}) {
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
   });
   await page.emulateTimezone('Europe/Paris');
+  const cdp = await page.createCDPSession();
+  await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { left: 0, right: 0, ...insets } });
   const logs = [];
   page.on('console', (m) => {
     if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`);

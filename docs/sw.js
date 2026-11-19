@@ -1,6 +1,6 @@
 // Service worker de Prospection : appli disponible hors connexion.
-const VERSION = '2026-11-14-232ebbb7';
-const PRECACHE = ["./","./app.css","./app.js","./data/base.json","./data/dvf.json","./icons/apple-touch-icon.png","./icons/icon-192.png","./icons/icon-512-maskable.png","./icons/icon-512.png","./icons/icon.svg","./index.html","./js/cfb-NWAIKMMR.js","./js/chunk-BOSUH723.js","./js/chunk-IRO5ZDNL.js","./js/chunk-MHJXVPQK.js","./js/chunk-QXBYMTFZ.js","./js/chunk-VV34GD54.js","./js/jspdf.es.min-II2BJG5B.js","./js/jspdf.plugin.autotable-ZABY6DHG.js","./js/mention-OTYQOVT4.js","./js/officecrypto-4Y4ZPEMC.js","./js/pdf-ZHCBBLPL.js","./manifest.webmanifest"];
+const VERSION = '2026-11-19-e1aff171';
+const PRECACHE = ["./","./app.css","./app.js","./data/base.json","./data/dvf.json","./icons/apple-touch-icon.png","./icons/icon-192.png","./icons/icon-512-maskable.png","./icons/icon-512.png","./icons/icon.svg","./index.html","./js/cfb-NWAIKMMR.js","./js/chunk-5CGM465X.js","./js/chunk-IA6LB5FK.js","./js/chunk-IRO5ZDNL.js","./js/chunk-QXBYMTFZ.js","./js/chunk-VV34GD54.js","./js/jspdf.es.min-II2BJG5B.js","./js/jspdf.plugin.autotable-ZABY6DHG.js","./js/mention-J3KUCVIO.js","./js/officecrypto-4Y4ZPEMC.js","./js/pdf-IR6ZSXDX.js","./manifest.webmanifest"];
 const APP_CACHE = `prospection-app-${VERSION}`;
 const TILE_CACHE = 'prospection-tuiles';
 const MAX_TILES = 2500;

@@ -21,6 +21,7 @@ import {
 } from '../stats.js';
 import { exportBackup, restoreFromFile, backupAgeDays, hasBackupPassword, backupPassword, askNewBackupPassword } from '../backup.js';
 import * as lock from '../lock.js';
+import { THEMES, applyTheme, currentTheme, hexToRgb } from '../theme.js';
 import { openMentionPage, mentionReady } from './mention.js';
 import { updateDvf } from '../dvfUpdate.js';
 import { storageInfo, requestPersistence } from '../db.js';
@@ -67,7 +68,7 @@ function heatmap(grid) {
             const rate = c.open / c.n;
             const alpha = c.n < 3 ? 0.08 : 0.12 + rate * 0.75;
             const dark = c.n >= 3 && rate > 0.45;
-            return `<td style="background:rgba(29,78,216,${alpha.toFixed(2)});color:${dark ? '#fff' : '#1f2937'}">${c.n < 3 ? '<span style="opacity:.6">' : ''}${Math.round(rate * 100)} %<br><span style="font-weight:400;font-size:10px">${c.n} p.</span>${c.n < 3 ? '</span>' : ''}</td>`;
+            return `<td style="background:rgba(${hexToRgb(currentTheme().accent).join(',')},${alpha.toFixed(2)});color:${dark ? '#fff' : '#1f2937'}">${c.n < 3 ? '<span style="opacity:.6">' : ''}${Math.round(rate * 100)} %<br><span style="font-weight:400;font-size:10px">${c.n} p.</span>${c.n < 3 ? '</span>' : ''}</td>`;
           })
           .join('')}</tr>`,
     )
@@ -162,6 +163,18 @@ function rgpdHTML() {
     </div>`;
 }
 
+function themeHTML() {
+  const cur = currentTheme().id;
+  return `<div class="card">
+      <h3>${icon('palette', 18)} Apparence</h3>
+      <p class="small muted" style="margin:0 0 10px">Couleur de l’appli : barre du haut, boutons, écran du code.</p>
+      <div class="theme-swatches" role="radiogroup" aria-label="Couleur de l’appli">${THEMES.map(
+        (t) =>
+          `<button type="button" class="swatch ${t.id === cur ? 'on' : ''}" data-theme-id="${t.id}" role="radio" aria-checked="${t.id === cur}" style="--sw:${t.head}"><span class="swatch-dot">${t.id === cur ? icon('check', 20) : ''}</span>${t.label}</button>`,
+      ).join('')}</div>
+    </div>`;
+}
+
 function securityHTML() {
   const d = lock.lockDelay();
   const opts = [
@@ -191,6 +204,7 @@ function settingsHTML(storage) {
       <button type="button" class="btn btn-primary btn-block" data-pdf>${icon('pdf', 20)} Générer le bilan PDF</button>
     </div>
     <div class="section-title">Paramètres</div>
+    ${themeHTML()}
     ${securityHTML()}
     <div class="card">
       <h3>${icon('download', 18)} Sauvegarde</h3>
@@ -303,6 +317,12 @@ export function initDashboard(root) {
       return render();
     }
     if (t.closest('[data-trash]')) return openTrash();
+    const sw = t.closest('[data-theme-id]');
+    if (sw) {
+      applyTheme(sw.dataset.themeId);
+      await setSetting('theme', sw.dataset.themeId);
+      return render();
+    }
     if (t.closest('[data-sansaccord]')) {
       nav.goTab('contacts');
       return document.getElementById('tab-contacts').dispatchEvent(new CustomEvent('contacts:filtre', { detail: 'accord' }));

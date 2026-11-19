@@ -8,6 +8,8 @@ Application iPhone (web app installable) pour organiser la prospection immobili�
 2. Bouton **Partager**, puis **Sur l'écran d'accueil**.
 3. Toujours lancer Prospection depuis cette icône : les données de l'icône et celles de Safari sont séparées sur iPhone.
 
+Pour que la carte s'affiche aussi sous l'heure et la batterie, l'icône doit avoir été ajoutée après la version du 19/11/2026 : iOS garde le réglage de la barre d'état tel qu'il était à l'installation.
+
 L'appli fonctionne ensuite sans connexion. Toutes les données saisies (contacts, passages, notes, photos) restent sur le téléphone : rien n'est envoyé sur Internet. La sauvegarde se fait par export d'un fichier Excel (.xlsx) protégé par mot de passe, à enregistrer dans un Drive depuis le menu Partager.
 
 ## Sécurité et RGPD
@@ -28,7 +30,9 @@ L'appli fonctionne ensuite sans connexion. Toutes les données saisies (contacts
 | Contacts | Fiches complètes, recherche, copie des champs, doublons, corbeille 30 jours |
 | Relances | Relances datées (ajout au calendrier), absents à repasser |
 | Scénarios | Bibliothèque des prétextes de prise de contact, alerte en cas de répétition |
-| Tableau | Objectifs (100 portes/semaine, 3 mandats/mois), îlots prioritaires, statistiques, bilan PDF, paramètres |
+| Tableau | Objectifs (100 portes/semaine, 3 mandats/mois), îlots prioritaires, statistiques, bilan PDF, RGPD, paramètres (couleur de l'appli, sécurité, sauvegarde) |
+
+Couleur de l'appli au choix (Tableau, Paramètres, Apparence) : bleu, rouge, bordeaux, framboise ou graphite. Elle colore la barre du haut, les boutons, l'onglet actif et l'écran du code.
 
 ## Organisation du code
 
@@ -36,6 +40,7 @@ L'appli fonctionne ensuite sans connexion. Toutes les données saisies (contacts
   - `state.js` : données en mémoire et règles métier (couleurs, blocages, absents à repasser).
   - `db.js` : stockage local IndexedDB (chaque enregistrement est chiffré avant d'être écrit).
   - `vault.js`, `lock.js` : chiffrement des données et écran du code.
+  - `theme.js` : couleurs de l'appli (gardées hors des données chiffrées pour colorer l'écran du code).
   - `officecrypto.js` : fichier Excel protégé par mot de passe (spécification MS-OFFCRYPTO).
   - `views/` : un fichier par écran.
   - `xlsx.js`, `backup.js` : export et restauration Excel écrits à la main (un .xlsx est un zip de fichiers XML).
@@ -43,7 +48,7 @@ L'appli fonctionne ensuite sans connexion. Toutes les données saisies (contacts
 - `scripts/build-data.mjs` : découpe le cadastre, les adresses et les ventes selon les 9 îlots.
 - `scripts/build.mjs` : assemble le site dans `docs/` avec le service worker (hors connexion).
 - `data-src/ilots.kml` : contours des îlots exportés de Google My Maps (zones rouges).
-- `tests/` : tests automatisés dans Chrome au format iPhone. `tests/officecrypto.mjs` vérifie le fichier protégé avec msoffcrypto-tool, olefile et LibreOffice (Python : `pip install msoffcrypto-tool`).
+- `tests/` : tests automatisés dans Chrome au format iPhone. `tests/theme.mjs plein|bande` vérifie la mise en page avec ou sans la barre d'état d'iOS au-dessus de l'appli. `tests/officecrypto.mjs` vérifie le fichier protégé avec msoffcrypto-tool, olefile et LibreOffice (Python : `pip install msoffcrypto-tool`).
 
 ## Mise à jour automatique des ventes DVF
 
